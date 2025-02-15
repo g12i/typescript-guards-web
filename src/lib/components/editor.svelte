@@ -3,12 +3,12 @@
 	import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 	type Props = {
-		initialValue: string;
+		initialValue?: string;
 		value?: string;
 		onDidChangeContent?: (next: string) => void;
 	} & Monaco.editor.IStandaloneEditorConstructionOptions;
 
-	let { initialValue, value = $bindable(), onDidChangeContent, ...rest }: Props = $props();
+	let { initialValue = '', value = $bindable(), onDidChangeContent, ...rest }: Props = $props();
 
 	let editor: Monaco.editor.IStandaloneCodeEditor | undefined = $state();
 	let monaco: typeof Monaco | undefined = $state();
@@ -16,11 +16,7 @@
 
 	$effect(() => {
 		const currentValue = value;
-		console.log({
-			currentValue,
-			monaco,
-			editor
-		});
+
 		if (currentValue && monaco && editor) {
 			const model = monaco.editor.createModel(currentValue, 'typescript');
 			editor.setModel(model);
