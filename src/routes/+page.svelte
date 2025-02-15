@@ -1,57 +1,59 @@
 <script lang="ts">
 	import Editor from '$lib/components/editor.svelte';
-	import * as Select from '$lib/components/ui/select';
+	import * as Resizable from '$lib/components/ui/resizable/index.js';
+	import * as Menubar from '$lib/components/ui/menubar/index.js';
+	import type { Flags } from '$lib/generator-context';
 	import { onMount } from 'svelte';
+	import { isGenerateResponse } from './api/generate/types';
+	import type { GenerateRequest } from './api/generate/types';
+	import { isFlags } from '$lib/generator-context';
 
-	type ApiResponse = { ok: true; output: string } | { ok: false; code: string; error: any };
-
-	function isApiResponse(value: unknown): value is ApiResponse {
-		return (
-			(value !== null &&
-				typeof value === 'object' &&
-				'ok' in value &&
-				value.ok === true &&
-				'output' in value &&
-				typeof value.output === 'string') ||
-			(value !== null &&
-				typeof value === 'object' &&
-				'ok' in value &&
-				value.ok === false &&
-				'code' in value &&
-				typeof value.code === 'string' &&
-				'error' in value &&
-				true)
-		);
-	}
-
-	let input = $state('');
-	let debouncedInput = $state(input);
+	let debouncedInput = $state('');
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
-	let output = $state('');
-
-	const onDidChangeContent = (next: string) => {
-		input = next;
-	};
-
-	onMount(() => {
-		const cached = localStorage.getItem(`generator:input`);
-
-		if (cached) {
-			input = cached;
-		}
-	});
-
-	$effect(() => {
-		const currentInput = input;
-
-		localStorage.setItem(`generator:input`, currentInput);
+	let input = $state('');
+	let updateInput = (nextInput: string) => {
+		input = nextInput;
 
 		clearTimeout(timer);
 
 		timer = setTimeout(() => {
-			debouncedInput = currentInput;
+			debouncedInput = nextInput;
 		}, 300);
+
+		localStorage.setItem('generator:input', nextInput);
+	};
+
+	let flags: Flags = $state({ plainObjectCheck: 'simple' });
+	let updateFlags =
+		<TKey extends keyof Flags>(prop: TKey) =>
+		(next: Flags[TKey]) => {
+			flags[prop] = next;
+
+			localStorage.setItem('generator:flags', JSON.stringify(flags));
+		};
+
+	let output = $state('');
+
+	onMount(() => {
+		try {
+			const cachedFlags = localStorage.getItem(`generator:flags`);
+
+			const parsed = cachedFlags ? JSON.parse(cachedFlags) : undefined;
+
+			if (isFlags(parsed)) {
+				flags = parsed;
+			}
+		} catch {
+			// do nothnig
+		}
+
+		const cachedInput = localStorage.getItem(`generator:input`);
+
+		if (cachedInput) {
+			input = cachedInput;
+			debouncedInput = cachedInput;
+		}
 	});
 
 	let ctrl = new AbortController();
@@ -65,10 +67,9 @@
 
 		ctrl = new AbortController();
 
-		console.log('fetch', debouncedInput);
 		fetch('/api/generate', {
 			method: 'POST',
-			body: JSON.stringify({ input: debouncedInput }),
+			body: JSON.stringify({ input: debouncedInput, flags } satisfies GenerateRequest),
 			headers: { 'content-type': 'application/json' },
 			signal: ctrl.signal
 		})
@@ -79,7 +80,7 @@
 				return res.json();
 			})
 			.then((resBody) => {
-				if (!isApiResponse(resBody)) {
+				if (!isGenerateResponse(resBody)) {
 					throw new Error('Unknown response');
 				}
 
@@ -99,24 +100,46 @@
 <div class="h-dvh w-dvw">
 	<div class="flex h-full flex-col px-8 py-4">
 		<div>
-			<Select.Root type="single">
-				<Select.Trigger class="w-[180px]">Yo</Select.Trigger>
-				<Select.Content>
-					<Select.Item value="light">Light</Select.Item>
-					<Select.Item value="dark">Dark</Select.Item>
-					<Select.Item value="system">System</Select.Item>
-				</Select.Content>
-			</Select.Root>
+			<Menubar.Root>
+				<Menubar.Menu>
+					<Menubar.Trigger>Options</Menubar.Trigger>
+					<Menubar.Content>
+						<Menubar.Sub>
+							<Menubar.SubTrigger>Plain object generation</Menubar.SubTrigger>
+							<Menubar.SubContent>
+								<Menubar.RadioGroup
+									value={flags.plainObjectCheck}
+									onValueChange={updateFlags('plainObjectCheck')}
+								>
+									<Menubar.RadioItem value="simple">Simple check</Menubar.RadioItem>
+									<Menubar.RadioItem value="insert">Inline check</Menubar.RadioItem>
+									<Menubar.RadioItem value="es-toolkit">
+										Import from <code>es-toolkit</code>
+									</Menubar.RadioItem>
+									<Menubar.RadioItem value="lodash">
+										Import from <code>lodash</code>
+									</Menubar.RadioItem>
+								</Menubar.RadioGroup>
+							</Menubar.SubContent>
+						</Menubar.Sub>
+					</Menubar.Content>
+				</Menubar.Menu>
+			</Menubar.Root>
 		</div>
 		<div class="flex h-full w-full flex-1 flex-col md:flex-row">
-			<div
-				class="flex h-1/2 flex-col border-b border-zinc-300 p-4 md:h-auto md:w-1/2 md:border-r md:border-b-0"
-			>
-				<Editor initialValue={input} {onDidChangeContent} minimap={{ enabled: false }} />
-			</div>
-			<div class="h-1/2 md:h-auto md:w-1/2">
-				<Editor value={output} minimap={{ enabled: false }} theme="vs-dark" readOnly />
-			</div>
+			<Resizable.PaneGroup direction="horizontal">
+				<Resizable.Pane>
+					<Editor
+						initialValue={input}
+						onDidChangeContent={updateInput}
+						minimap={{ enabled: false }}
+					/>
+				</Resizable.Pane>
+				<Resizable.Handle />
+				<Resizable.Pane>
+					<Editor value={output} minimap={{ enabled: false }} theme="vs-dark" readOnly />
+				</Resizable.Pane>
+			</Resizable.PaneGroup>
 		</div>
 	</div>
 </div>

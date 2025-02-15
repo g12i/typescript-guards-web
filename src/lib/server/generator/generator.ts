@@ -1,8 +1,11 @@
 import ts from 'typescript';
-import type { Context } from './context';
+import type { GeneratorContext, Flags } from '$lib/generator-context';
 import { generateExtras } from './extras';
 
-export async function generateTypeGuardForFile(sourceFile: ts.SourceFile): Promise<string> {
+export async function generateTypeGuardForFile(
+	sourceFile: ts.SourceFile,
+	flags?: Flags
+): Promise<string> {
 	const declarations: (ts.TypeAliasDeclaration | ts.InterfaceDeclaration)[] = [];
 
 	const visit = (node: ts.Node) => {
@@ -14,16 +17,20 @@ export async function generateTypeGuardForFile(sourceFile: ts.SourceFile): Promi
 
 	ts.forEachChild(sourceFile, visit);
 
-	const context: Context = {
+	const context: GeneratorContext = {
 		currentValuePath: 'value',
+		runtime: {},
 		flags: {
-			plainObjectCheck: 'simple'
+			plainObjectCheck: 'simple',
+			...flags
 		},
 		hooks: {
 			afterCode: '',
 			beforeCode: ''
 		}
 	};
+
+	console.log(context);
 
 	const code = declarations.map((d) => generateTypeGuardForDeclaration(d, context)).join('\n\n');
 
@@ -34,7 +41,7 @@ export async function generateTypeGuardForFile(sourceFile: ts.SourceFile): Promi
 
 function generateTypeGuardForDeclaration(
 	decl: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
-	context: Context
+	context: GeneratorContext
 ) {
 	const typeName = decl.name.text;
 	const functionName = `is${typeName}`;
@@ -48,7 +55,7 @@ export function ${functionName}(value: unknown): value is ${typeName} {
 }`;
 }
 
-function generateNodeChecks(node: ts.Node, context: Context): string {
+function generateNodeChecks(node: ts.Node, context: GeneratorContext): string {
 	if (ts.isUnionTypeNode(node)) {
 		const unionChecks = node.types.map((type) => generateNodeChecks(type, context));
 
@@ -118,7 +125,7 @@ function generateNodeChecks(node: ts.Node, context: Context): string {
 
 function generateDeclarationsChecks(
 	node: ts.TypeLiteralNode | ts.InterfaceDeclaration,
-	context: Context
+	context: GeneratorContext
 ) {
 	const valuePath = context.currentValuePath;
 
@@ -152,12 +159,12 @@ function generateDeclarationsChecks(
 			: `&& ('${propName}' in ${valuePath} && (${propertyChecks}))`;
 	});
 
-	context.flags.needIsPlainObject = true;
+	context.runtime.needIsPlainObject = true;
 
 	return `(${generateIsPlainObjectCheck(context, valuePath)} ${memberChecks.join('')})`;
 }
 
-function generateReferenceChecks(node: ts.TypeReferenceNode, context: Context) {
+function generateReferenceChecks(node: ts.TypeReferenceNode, context: GeneratorContext) {
 	const valuePath = context.currentValuePath;
 	const typeName = node.typeName.getText();
 
@@ -186,13 +193,16 @@ function generateReferenceChecks(node: ts.TypeReferenceNode, context: Context) {
 	return `is${typeName}(${valuePath})`;
 }
 
-function generateLiteralCheck(node: ts.LiteralTypeNode, context: Context) {
+function generateLiteralCheck(node: ts.LiteralTypeNode, context: GeneratorContext) {
 	const literal = node.literal.getText();
 
 	return `${context.currentValuePath} === ${literal}`;
 }
 
-function generateArrayChecks(node: Pick<ts.ArrayTypeNode, 'elementType'>, context: Context) {
+function generateArrayChecks(
+	node: Pick<ts.ArrayTypeNode, 'elementType'>,
+	context: GeneratorContext
+) {
 	const valuePath = context.currentValuePath;
 	const elementType = node.elementType;
 	const elementContext = {
@@ -210,7 +220,7 @@ function generateArrayChecks(node: Pick<ts.ArrayTypeNode, 'elementType'>, contex
 	].join('\n');
 }
 
-function generateTupleCheck(node: ts.TupleTypeNode, context: Context): string {
+function generateTupleCheck(node: ts.TupleTypeNode, context: GeneratorContext): string {
 	const valuePath = context.currentValuePath;
 
 	const elementTypes = node.elements;
@@ -227,7 +237,7 @@ function generateTupleCheck(node: ts.TupleTypeNode, context: Context): string {
 	return `Array.isArray(${valuePath}) && ${valuePath}.length === ${elementTypes.length} && ${tupleChecks.map((check) => `(${check})`).join(`&&`)}`;
 }
 
-function generateRecordChecks(node: ts.TypeReferenceNode, context: Context): string {
+function generateRecordChecks(node: ts.TypeReferenceNode, context: GeneratorContext): string {
 	const valuePath = context.currentValuePath;
 
 	if (node.typeArguments && node.typeArguments.length === 2) {
@@ -235,14 +245,14 @@ function generateRecordChecks(node: ts.TypeReferenceNode, context: Context): str
 
 		const keyTypeString = keyType.kind === ts.SyntaxKind.StringKeyword ? 'string' : 'number';
 
-		const valueContext: Context = {
+		const valueContext: GeneratorContext = {
 			...context,
 			currentValuePath: 'value'
 		};
 
 		const valueChecks = generateNodeChecks(valueType, valueContext);
 
-		context.flags.needIsPlainObject = true;
+		context.runtime.needIsPlainObject = true;
 
 		return `(
       ${generateIsPlainObjectCheck(context, valuePath)} &&
@@ -255,18 +265,18 @@ function generateRecordChecks(node: ts.TypeReferenceNode, context: Context): str
 	return 'false';
 }
 
-function generateMapChecks(node: ts.TypeReferenceNode, context: Context): string {
+function generateMapChecks(node: ts.TypeReferenceNode, context: GeneratorContext): string {
 	const valuePath = context.currentValuePath;
 
 	if (node.typeArguments && node.typeArguments.length === 2) {
 		const [keyType, valueType] = node.typeArguments;
 
-		const keyContext: Context = {
+		const keyContext: GeneratorContext = {
 			...context,
 			currentValuePath: 'key'
 		};
 
-		const valueContext: Context = {
+		const valueContext: GeneratorContext = {
 			...context,
 			currentValuePath: 'value'
 		};
@@ -285,13 +295,13 @@ function generateMapChecks(node: ts.TypeReferenceNode, context: Context): string
 	return 'false';
 }
 
-function generateSetChecks(node: ts.TypeReferenceNode, context: Context): string {
+function generateSetChecks(node: ts.TypeReferenceNode, context: GeneratorContext): string {
 	const valuePath = context.currentValuePath;
 
 	if (node.typeArguments && node.typeArguments.length === 1) {
 		const [valueType] = node.typeArguments;
 
-		const valueContext: Context = {
+		const valueContext: GeneratorContext = {
 			...context,
 			currentValuePath: 'value'
 		};
@@ -307,7 +317,7 @@ function generateSetChecks(node: ts.TypeReferenceNode, context: Context): string
 	return 'false';
 }
 
-function generateIsPlainObjectCheck(context: Context, valuePath: string) {
+function generateIsPlainObjectCheck(context: GeneratorContext, valuePath: string) {
 	if (context.flags.plainObjectCheck === 'simple') {
 		return `${valuePath} !== null && typeof ${valuePath} === 'object'`;
 	}

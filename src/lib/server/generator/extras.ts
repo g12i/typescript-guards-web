@@ -1,17 +1,18 @@
-import type { Context } from './context';
+import type { GeneratorContext } from '$lib/generator-context';
 
-export function generateExtras(context: Context) {
-	if (context.flags.needIsPlainObject && context.flags.plainObjectCheck !== 'simple') {
+export function generateExtras(context: GeneratorContext) {
+	if (context.runtime.needIsPlainObject && context.flags.plainObjectCheck !== 'simple') {
 		if (context.flags.plainObjectCheck === 'es-toolkit') {
-			context.hooks.beforeCode += ts`import { isPlainObject } from 'es-toolkit'\n`;
+			context.hooks.beforeCode += ts`import { isPlainObject } from 'es-toolkit'` + '\n';
 		}
 
 		if (context.flags.plainObjectCheck === 'lodash') {
-			context.hooks.beforeCode += ts`import { isPlainObject } from 'lodash'\n`;
+			context.hooks.beforeCode += ts`import { isPlainObject } from 'lodash'` + '\n';
 		}
 
 		if (context.flags.plainObjectCheck === 'insert') {
-			context.hooks.beforeCode += ts`
+			context.hooks.beforeCode +=
+				ts`
 function isPlainObject(value: unknown): value is Record<PropertyKey, any> {
   if (!value || typeof value !== 'object') {
     return false;
@@ -30,7 +31,7 @@ function isPlainObject(value: unknown): value is Record<PropertyKey, any> {
   }
 
   return Object.prototype.toString.call(value) === '[object Object]';
-}\n`;
+}` + '\n';
 		}
 	}
 }
