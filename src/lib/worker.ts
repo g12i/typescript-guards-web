@@ -1,16 +1,23 @@
-import { formatTypeScript } from '$lib/generator/format';
-import { generateTypeGuardForFile } from '$lib/generator/generator';
-import { json } from '@sveltejs/kit';
 import ts from 'typescript';
-import type { RequestHandler } from './$types';
-import { isGenerateRequest, type GenerateResponse } from '../../../lib/worker-types';
-import { attempt } from '$lib/attempt';
+import { generateTypeGuardForFile } from './generator/generator';
+import { isGenerateRequest } from './worker-types';
+import type { GenerateResponse } from './worker-types';
+import { attempt } from './attempt';
+import { formatTypeScript } from './generator/format';
 
-export const POST: RequestHandler = async ({ request }) => {
-	const payload = await request.json();
+self.onmessage = async (e: MessageEvent) => {
+	const [parseError, payload] = await attempt(Promise.resolve(JSON.parse(e.data)));
+
+	if (parseError) {
+		return self.postMessage({
+			ok: false,
+			code: 'JSON_PARSE_ERROR',
+			error: new Error('Could not parse JSON')
+		} satisfies GenerateResponse);
+	}
 
 	if (!isGenerateRequest(payload)) {
-		return json({
+		return self.postMessage({
 			ok: false,
 			code: 'INVALID_INPUT',
 			error: new Error('Schema validation')
@@ -22,7 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	);
 
 	if (sourceFileErr) {
-		return json({
+		return self.postMessage({
 			ok: false,
 			code: 'SOURCE_FILE_GEN_ERROR',
 			error: sourceFileErr
@@ -34,7 +41,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	);
 
 	if (genError) {
-		return json({
+		return self.postMessage({
 			ok: false,
 			code: 'CODE_GENERATION_ERROR',
 			error: genError
@@ -44,12 +51,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	const [formatError, formattedCode] = await attempt(formatTypeScript(generatedCode));
 
 	if (formatError) {
-		return json({
+		return self.postMessage({
 			ok: false,
 			code: 'CODE_FORMATTER_ERROR',
 			error: formatError
 		} satisfies GenerateResponse);
 	}
 
-	return json({ ok: true, output: formattedCode } satisfies GenerateResponse);
+	return self.postMessage({ ok: true, output: formattedCode } satisfies GenerateResponse);
 };

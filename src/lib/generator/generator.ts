@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import type { GeneratorContext, Flags } from '$lib/generator-context';
+import type { GeneratorContext, Flags } from '$lib/generator/context';
 import { generateExtras } from './extras';
 import { formatTypeScript } from './format';
 

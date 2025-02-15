@@ -1,4 +1,4 @@
-import type { GeneratorContext } from '$lib/generator-context';
+import type { GeneratorContext } from '$lib/generator/context';
 
 export function generateExtras(context: GeneratorContext) {
 	if (context.runtime.needIsPlainObject && context.flags.plainObjectCheck !== 'simple') {

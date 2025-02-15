@@ -1,5 +1,5 @@
-import { isFlags } from '$lib/generator-context';
-import type { Flags } from '$lib/generator-context';
+import { isFlags } from '$lib/generator/context';
+import type { Flags } from '$lib/generator/context';
 
 export type GenerateRequest = {
 	input: string;
