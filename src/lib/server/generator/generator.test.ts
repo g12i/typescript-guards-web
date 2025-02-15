@@ -9,18 +9,19 @@ describe(generateTypeGuardForFile.name, () => {
 			`
 type BasicTypes = {
   str: string;
+  any: any;
   num: number;
   bool: boolean;
   nil: null;
   undef: undefined;
-  any: any;
   unknown: unknown;
 }`,
 			ts.ScriptTarget.Latest,
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile);
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
 		expect(result).toMatchFileSnapshot('snapshots/basic-types.snapshot.ts');
 	});
 
@@ -35,7 +36,8 @@ type ComplexUnion = { type: "a"; value: string } | { type: "b"; value: number };
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile);
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
 		expect(result).toMatchFileSnapshot('snapshots/union-intersection.snapshot.ts');
 	});
 
@@ -51,7 +53,8 @@ type NestedArray = Array<Array<string>>;`,
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile);
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
 		expect(result).toMatchFileSnapshot('snapshots/arrays-tuples.snapshot.ts');
 	});
 
@@ -74,7 +77,8 @@ interface Employee extends Person {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile);
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
 		expect(result).toMatchFileSnapshot('snapshots/interfaces.snapshot.ts');
 	});
 
@@ -103,7 +107,8 @@ type Config = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile);
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
 		expect(result).toMatchFileSnapshot('snapshots/nested-objects.snapshot.ts');
 	});
 
@@ -127,7 +132,8 @@ type User = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile);
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
 		expect(result).toMatchFileSnapshot('snapshots/user.snapshot.ts');
 	});
 });
@@ -150,6 +156,7 @@ type ComplexSet = Set<{ id: string }>;
 		true
 	);
 
-	const result = await generateTypeGuardForFile(sourceFile);
+	const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
 	expect(result).toMatchFileSnapshot('snapshots/collections.snapshot.ts');
 });

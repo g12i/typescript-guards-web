@@ -1,10 +1,12 @@
 import ts from 'typescript';
 import type { GeneratorContext, Flags } from '$lib/generator-context';
 import { generateExtras } from './extras';
+import { formatTypeScript } from './format';
 
 export async function generateTypeGuardForFile(
 	sourceFile: ts.SourceFile,
-	flags?: Flags
+	flags?: Flags,
+	format = false
 ): Promise<string> {
 	const declarations: (ts.TypeAliasDeclaration | ts.InterfaceDeclaration)[] = [];
 
@@ -26,17 +28,21 @@ export async function generateTypeGuardForFile(
 		},
 		hooks: {
 			afterCode: '',
-			beforeCode: ''
+			beforeCode: sourceFile.getText() + '\n'
 		}
 	};
-
-	console.log(context);
 
 	const code = declarations.map((d) => generateTypeGuardForDeclaration(d, context)).join('\n\n');
 
 	generateExtras(context);
 
-	return context.hooks.beforeCode + code + context.hooks.afterCode;
+	let finalCode = context.hooks.beforeCode + code + context.hooks.afterCode;
+
+	if (format) {
+		finalCode = await formatTypeScript(finalCode);
+	}
+
+	return finalCode;
 }
 
 function generateTypeGuardForDeclaration(
