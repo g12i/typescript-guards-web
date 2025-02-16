@@ -11,12 +11,24 @@ export class Condition {
 	}
 
 	toString(): string {
-		if (this.and.length > 0) {
-			return `(${this.and.map((c) => `(${c.toString()})`).join(' && ')})`;
+		if (this.or.length > 0) {
+			const expressions = this.or.map((c) => c.toString()).filter(Boolean);
+
+			if (expressions.length === 0) return 'true';
+
+			const unique = [...new Set(expressions)];
+
+			return `(${unique.join(' || ')})`;
 		}
 
-		if (this.or.length > 0) {
-			return `(${this.or.map((c) => `(${c.toString()})`).join(' || ')})`;
+		if (this.and.length > 0) {
+			const expressions = this.and.map((c) => c.toString()).filter(Boolean);
+
+			if (expressions.length === 0) return 'true';
+
+			const unique = [...new Set(expressions)];
+
+			return `(${unique.join(' && ')})`;
 		}
 
 		return this.expression;

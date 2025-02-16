@@ -36,8 +36,6 @@ export function isWithIndex(value: unknown): value is WithIndex {
   return (
     isPlainObject(value) &&
     true /* Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported */ &&
-    true /* Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported */ &&
-    true /* Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported */ &&
     hasOwn(value, "normalProp") &&
     typeof value.normalProp === "string"
   );

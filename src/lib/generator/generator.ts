@@ -176,7 +176,7 @@ function generateNodeCondition(node: ts.Node, context: GeneratorContext): Condit
 	}
 
 	if (node.kind === ts.SyntaxKind.AnyKeyword || node.kind === ts.SyntaxKind.UnknownKeyword) {
-		return conditions.literal('true');
+		return conditions.literal('true /* any or unknown type */');
 	}
 
 	return conditions.literal(`true /* Unsupported type: ${ts.SyntaxKind[node.kind]} */`);
@@ -190,9 +190,9 @@ function generateDeclarationCondition(
 
 	const members = ts.isTypeLiteralNode(node) ? node.members : node.members;
 
-	const memberCondition = members.map((member) => generateMemberCondition(member, context));
+	const memberConditions = members.map((member) => generateMemberCondition(member, context));
 
-	return conditions.and([conditions.literal($isObject(context, valuePath)), ...memberCondition]);
+	return conditions.and([conditions.literal($isObject(context, valuePath)), ...memberConditions]);
 }
 
 function generateMemberCondition(member: ts.TypeElement, context: GeneratorContext): Condition {
@@ -247,7 +247,7 @@ function generateMemberCondition(member: ts.TypeElement, context: GeneratorConte
 
 		if (isOptional) {
 			return conditions.literal(
-				`${$hasOwn(context, valuePath, propName)} ? (${propertyCondition}) : true`
+				`(${$hasOwn(context, valuePath, propName)} ? (${propertyCondition}) : true)`
 			);
 		}
 
