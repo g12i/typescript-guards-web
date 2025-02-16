@@ -2,7 +2,6 @@ type StringArray = string[];
 type NumberArray = Array<number>;
 type Tuple = [string, number, boolean];
 type NestedArray = Array<Array<string>>;
-
 export function isStringArray(value: unknown): value is StringArray {
   return Array.isArray(value) && value.every((el) => typeof el === "string");
 }

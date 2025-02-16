@@ -19,11 +19,13 @@ export async function generateTypeGuardForFile(
 		},
 		flags: {
 			plainObjectCheck: 'simple',
+			hasOwnCheck: 'hasOwn',
 			...flags
 		},
 		hooks: {
-			afterCode: new Map(),
-			beforeCode: new Map([['source', sourceFile.getText() + '\n']])
+			beforeAll: new Map(),
+			afterGenerated: new Map(),
+			beforeGenerated: new Map()
 		}
 	};
 
@@ -58,7 +60,12 @@ export async function generateTypeGuardForFile(
 
 	generateExtras(context);
 
-	let finalCode = printHooks(context.hooks.beforeCode) + code + printHooks(context.hooks.afterCode);
+	let finalCode =
+		printHooks(context.hooks.beforeAll) +
+		sourceFile.getText() +
+		printHooks(context.hooks.beforeGenerated) +
+		code +
+		printHooks(context.hooks.afterGenerated);
 
 	if (format) {
 		finalCode = await formatTypeScript(finalCode);
@@ -71,11 +78,17 @@ function generateTypeGuardForDeclaration(
 	decl: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
 	context: GeneratorContext
 ) {
-	const typeName = decl.name.text;
+	let typeName = decl.name.text;
 	const functionName = `is${typeName}`;
 	const type = ts.isTypeAliasDeclaration(decl) ? decl.type : decl;
 
 	context.runtime.generatedTypeGuards.add(typeName);
+
+	if (decl.typeParameters && decl.typeParameters.length > 0) {
+		const anys = Array.from({ length: decl.typeParameters.length }, () => 'any').join(', ');
+
+		typeName += `<${anys}>`;
+	}
 
 	const checks = generateNodeChecks(type, context);
 
@@ -173,46 +186,66 @@ function generateDeclarationsChecks(
 
 	const members = ts.isTypeLiteralNode(node) ? node.members : node.members;
 
-	const memberChecks = members.map((member) => {
-		const propName = member.name?.getText();
-
-		if (!propName) {
-			return '';
-		}
-
-		if (ts.isMethodSignature(member)) {
-			// Handle methods - just check if it's a function
-			return `&& ('${propName}' in ${valuePath} && typeof ${valuePath}.${propName} === 'function')`;
-		}
-
-		if (ts.isPropertySignature(member)) {
-			const propType = member.type;
-
-			if (!propType) {
-				return '';
-			}
-
-			const newContext = {
-				...context,
-				currentValuePath: `${context.currentValuePath}.${propName}`
-			};
-
-			const propertyChecks = generateNodeChecks(propType, newContext);
-
-			// Handle optional properties
-			const isOptional = member.questionToken !== undefined;
-
-			return isOptional
-				? `&& ('${propName}' in ${valuePath} ? (${propertyChecks}) : true)`
-				: `&& ('${propName}' in ${valuePath} && (${propertyChecks}))`;
-		}
-
-		return '';
-	});
+	const memberChecks = members.map((member) => generateMemberChecks(member, context));
 
 	context.runtime.needIsPlainObject = true;
 
-	return `(${generateIsPlainObjectCheck(context, valuePath)} ${memberChecks.join('')})`;
+	return `(${$isObject(context, valuePath)} ${memberChecks.join('')})`;
+}
+
+function generateMemberChecks(member: ts.TypeElement, context: GeneratorContext) {
+	const valuePath = context.currentValuePath;
+
+	if (ts.isIndexSignatureDeclaration(member)) {
+		return `&& true /* Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported */`;
+	}
+
+	const propName = member.name?.getText();
+
+	if (!propName) {
+		return `&& true /* Unknown member type: ${ts.SyntaxKind[member.kind]} */`;
+	}
+
+	// Handle computed properties (like Symbol.iterator)
+	if (ts.isPropertySignature(member) && ts.isComputedPropertyName(member.name)) {
+		const symbolName = member.name.expression.getText();
+		const newContext = {
+			...context,
+			currentValuePath: `${context.currentValuePath}[${symbolName}]`
+		};
+
+		const propertyChecks = generateNodeChecks(member.type!, newContext);
+
+		return `&& (${propertyChecks})`;
+	}
+
+	if (ts.isMethodSignature(member)) {
+		return `&& (${$hasOwn(context, valuePath, propName)} && typeof ${valuePath}.${propName} === 'function')`;
+	}
+
+	if (ts.isPropertySignature(member)) {
+		const propType = member.type;
+
+		if (!propType) {
+			return `&& true /* Property signature without type */`;
+		}
+
+		const newContext = {
+			...context,
+			currentValuePath: `${context.currentValuePath}.${propName}`
+		};
+
+		const propertyChecks = generateNodeChecks(propType, newContext);
+
+		// Handle optional properties
+		const isOptional = member.questionToken !== undefined;
+
+		return isOptional
+			? `&& (${$hasOwn(context, valuePath, propName)} ? (${propertyChecks}) : true)`
+			: `&& (${$hasOwn(context, valuePath, propName)} && (${propertyChecks}))`;
+	}
+
+	return `&& true /* Unsupported member type: ${ts.SyntaxKind[member.kind]} */`;
 }
 
 function generateReferenceChecks(node: ts.TypeReferenceNode, context: GeneratorContext) {
@@ -265,7 +298,7 @@ function generateReferenceChecks(node: ts.TypeReferenceNode, context: GeneratorC
 		return `is${typeName}(${valuePath})`;
 	}
 
-	return `(${generateIsPlainObjectCheck(context, valuePath)})`;
+	return `(${$isObject(context, valuePath)})`;
 }
 
 function generateLiteralCheck(node: ts.LiteralTypeNode, context: GeneratorContext) {
@@ -330,7 +363,7 @@ function generateRecordChecks(node: ts.TypeReferenceNode, context: GeneratorCont
 		context.runtime.needIsPlainObject = true;
 
 		return `(
-      ${generateIsPlainObjectCheck(context, valuePath)} &&
+      ${$isObject(context, valuePath)} &&
       Object.entries(${valuePath}).every(([key, value]) =>
         typeof key === "${keyTypeString}" && (${valueChecks})
       )
@@ -398,14 +431,6 @@ function generateTypeQueryCheck(node: ts.TypeQueryNode, context: GeneratorContex
 	return `(typeof ${context.currentValuePath} === 'function' && ${context.currentValuePath}.name === '${typeName}')`;
 }
 
-function generateIsPlainObjectCheck(context: GeneratorContext, valuePath: string) {
-	if (context.flags.plainObjectCheck === 'simple') {
-		return `${valuePath} !== null && typeof ${valuePath} === 'object'`;
-	}
-
-	return `isPlainObject(${valuePath})`;
-}
-
 function printHooks(map: Map<string, string>): string {
 	let parts = '';
 
@@ -414,4 +439,22 @@ function printHooks(map: Map<string, string>): string {
 	}
 
 	return parts;
+}
+
+function $isObject(context: GeneratorContext, valuePath: string) {
+	if (context.flags.plainObjectCheck === 'simple') {
+		return `${valuePath} !== null && typeof ${valuePath} === 'object'`;
+	}
+
+	return `isPlainObject(${valuePath})`;
+}
+
+function $hasOwn(context: GeneratorContext, valuePath: string, propName: string) {
+	if (context.flags.hasOwnCheck === 'in') {
+		return `'${propName}' in ${valuePath}`;
+	}
+
+	context.runtime.needHasOwn = true;
+
+	return `hasOwn(${valuePath}, '${propName}')`;
 }

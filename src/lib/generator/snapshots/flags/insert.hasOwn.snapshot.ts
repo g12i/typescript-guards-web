@@ -1,12 +1,11 @@
-type BasicTypes = {
+interface Simple {
   str: string;
-  any: any;
-  num: number;
-  bool: boolean;
-  nil: null;
-  undef: undefined;
-  unknown: unknown;
-};
+  num?: number;
+  obj: {
+    value: boolean;
+  };
+}
+
 function isPlainObject(value: unknown): value is Record<PropertyKey, any> {
   if (!value || typeof value !== "object") {
     return false;
@@ -34,22 +33,15 @@ function hasOwn<O extends object, P extends PropertyKey>(
   return Object.hasOwn(obj, prop);
 }
 
-export function isBasicTypes(value: unknown): value is BasicTypes {
+export function isSimple(value: unknown): value is Simple {
   return (
     isPlainObject(value) &&
     hasOwn(value, "str") &&
     typeof value.str === "string" &&
-    hasOwn(value, "any") &&
-    true &&
-    hasOwn(value, "num") &&
-    typeof value.num === "number" &&
-    hasOwn(value, "bool") &&
-    typeof value.bool === "boolean" &&
-    hasOwn(value, "nil") &&
-    value.nil === null &&
-    hasOwn(value, "undef") &&
-    typeof value.undef === "undefined" &&
-    hasOwn(value, "unknown") &&
-    true
+    (hasOwn(value, "num") ? typeof value.num === "number" : true) &&
+    hasOwn(value, "obj") &&
+    isPlainObject(value.obj) &&
+    hasOwn(value.obj, "value") &&
+    typeof value.obj.value === "boolean"
   );
 }

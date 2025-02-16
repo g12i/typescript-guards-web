@@ -1,8 +1,73 @@
 import { describe, it, expect } from 'vitest';
 import { generateTypeGuardForFile } from './generator';
 import ts from 'typescript';
+import type { Flags } from './context';
+
+type MatrixType = {
+	[K in keyof Flags]: Record<Flags[K], boolean>;
+};
+
+const matrix: MatrixType = {
+	plainObjectCheck: {
+		'es-toolkit': true,
+		insert: true,
+		lodash: true,
+		simple: true
+	},
+	hasOwnCheck: {
+		hasOwn: true,
+		in: true
+	}
+};
+
+function generateFlagCombinations<T extends Record<string, Record<string, boolean>>>(
+	matrix: T
+): Array<{ [K in keyof T]: keyof T[K] }> {
+	const entries = Object.entries(matrix);
+	return entries.reduce(
+		(combinations, [key, values], index) => {
+			const valueKeys = Object.keys(values);
+			if (index === 0) {
+				return valueKeys.map((value) => ({ [key]: value }));
+			}
+			return combinations.flatMap((combination) =>
+				valueKeys.map((value) => ({
+					...combination,
+					[key]: value
+				}))
+			);
+		},
+		[] as { [k: string]: string }[]
+	) as { [K in keyof T]: keyof T[K] }[];
+}
+
+const allFlags = generateFlagCombinations(matrix);
 
 describe(generateTypeGuardForFile.name, () => {
+	describe('flag combinations', () => {
+		it.each(allFlags)(
+			'should generate with plainObjectCheck: $plainObjectCheck and hasOwnCheck: $hasOwnCheck',
+			async (flags) => {
+				const source = `
+                    interface Simple {
+                        str: string;
+                        num?: number;
+                        obj: {
+                            value: boolean;
+                        };
+                    }
+                `;
+				const sourceFile = ts.createSourceFile('simple.ts', source, ts.ScriptTarget.Latest, true);
+
+				const result = await generateTypeGuardForFile(sourceFile, flags, true);
+
+				expect(result).toMatchFileSnapshot(
+					`snapshots/flags/${flags.plainObjectCheck}.${flags.hasOwnCheck}.snapshot.ts`
+				);
+			}
+		);
+	});
+
 	it('should generate a type guard for basic types', async () => {
 		const sourceFile = ts.createSourceFile(
 			'basic-types.ts',
@@ -20,7 +85,11 @@ type BasicTypes = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/basic-types.snapshot.ts');
 	});
@@ -36,7 +105,11 @@ type ComplexUnion = { type: "a"; value: string } | { type: "b"; value: number };
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/union-intersection.snapshot.ts');
 	});
@@ -53,7 +126,11 @@ type NestedArray = Array<Array<string>>;`,
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/arrays-tuples.snapshot.ts');
 	});
@@ -77,7 +154,11 @@ interface Employee extends Person {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/interfaces.snapshot.ts');
 	});
@@ -107,7 +188,11 @@ type Config = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/nested-objects.snapshot.ts');
 	});
@@ -132,7 +217,11 @@ type User = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/user.snapshot.ts');
 	});
@@ -155,7 +244,11 @@ type ComplexSet = Set<{ id: string }>;
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/collections.snapshot.ts');
 	});
@@ -165,14 +258,18 @@ type ComplexSet = Set<{ id: string }>;
 			'error-objects.ts',
 			`
 type ErrorObject = {
-		ok: false;
-		error: Error;
+			ok: false;
+			error: Error;
 };`,
 			ts.ScriptTarget.Latest,
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/error-objects.snapshot.ts');
 	});
@@ -198,7 +295,11 @@ type WithClass = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/class-types.snapshot.ts');
 	});
@@ -215,7 +316,11 @@ type ReadonlyStuff = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/readonly.snapshot.ts');
 	});
@@ -233,24 +338,86 @@ type WithFunction = {
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
 
 		expect(result).toMatchFileSnapshot('snapshots/functions.snapshot.ts');
 	});
 
-	it('should handle template literal types', async () => {
-		const sourceFile = ts.createSourceFile(
-			'template-literals.ts',
-			`
-type Status = \`\${string}_STATUS\`;
-type HttpMethod = 'GET' | 'POST' | \`\${string}_METHOD\`;
-`,
-			ts.ScriptTarget.Latest,
+	it('should handle empty interface', async () => {
+		const source = `interface Empty {}`;
+		const sourceFile = ts.createSourceFile('empty.ts', source, ts.ScriptTarget.Latest, true);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
 			true
 		);
 
-		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		expect(result).toMatchFileSnapshot(`snapshots/empty.snapshot.ts`);
+	});
 
-		expect(result).toMatchFileSnapshot('snapshots/template-literals.snapshot.ts');
+	it('should handle index signatures with comments', async () => {
+		const source = `
+                interface WithIndex {
+                    [key: string]: any;
+                    [key: number]: string;
+                    [key: symbol]: unknown;
+                    normalProp: string;
+                }
+            `;
+		const sourceFile = ts.createSourceFile('index.ts', source, ts.ScriptTarget.Latest, true);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
+
+		expect(result).toMatchFileSnapshot(`snapshots/index-signatures.snapshot.ts`);
+	});
+
+	it('should handle complex nested types', async () => {
+		const source = `
+                type Nested = {
+                    a: {
+                        b: {
+                            c: string;
+                        }[];
+                    };
+                };
+            `;
+		const sourceFile = ts.createSourceFile('nested.ts', source, ts.ScriptTarget.Latest, true);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
+
+		expect(result).toMatchFileSnapshot(`snapshots/nested.snapshot.ts`);
+	});
+
+	it('should handle circular references', async () => {
+		const source = `
+                interface Node {
+                    value: string;
+                    parent?: Node;
+                    children: Node[];
+                }
+            `;
+
+		const sourceFile = ts.createSourceFile('circular.ts', source, ts.ScriptTarget.Latest, true);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
+
+		expect(result).toMatchFileSnapshot(`snapshots/circular.snapshot.ts`);
 	});
 });

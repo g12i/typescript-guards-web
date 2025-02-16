@@ -1,5 +1,6 @@
 export type Flags = {
 	plainObjectCheck: 'simple' | 'insert' | 'lodash' | 'es-toolkit';
+	hasOwnCheck: 'in' | 'hasOwn';
 };
 
 export function isFlags(value: unknown): value is Flags {
@@ -19,13 +20,15 @@ export type GeneratorContext = {
 	currentValuePath: string;
 	runtime: {
 		needIsPlainObject?: boolean;
+		needHasOwn?: boolean;
 		classes: Set<string>;
 		imports: Set<string>;
 		generatedTypeGuards: Set<string>;
 	};
 	flags: Flags;
 	hooks: {
-		beforeCode: Map<string, string>;
-		afterCode: Map<string, string>;
+		beforeAll: Map<string, string>;
+		beforeGenerated: Map<string, string>;
+		afterGenerated: Map<string, string>;
 	};
 };

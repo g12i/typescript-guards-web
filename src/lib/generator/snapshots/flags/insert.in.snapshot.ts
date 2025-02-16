@@ -1,7 +1,11 @@
-type ErrorObject = {
-  ok: false;
-  error: Error;
-};
+interface Simple {
+  str: string;
+  num?: number;
+  obj: {
+    value: boolean;
+  };
+}
+
 function isPlainObject(value: unknown): value is Record<PropertyKey, any> {
   if (!value || typeof value !== "object") {
     return false;
@@ -22,19 +26,15 @@ function isPlainObject(value: unknown): value is Record<PropertyKey, any> {
   return Object.prototype.toString.call(value) === "[object Object]";
 }
 
-function hasOwn<O extends object, P extends PropertyKey>(
-  obj: O,
-  prop: P,
-): obj is O & Record<P, unknown> {
-  return Object.hasOwn(obj, prop);
-}
-
-export function isErrorObject(value: unknown): value is ErrorObject {
+export function isSimple(value: unknown): value is Simple {
   return (
     isPlainObject(value) &&
-    hasOwn(value, "ok") &&
-    value.ok === false &&
-    hasOwn(value, "error") &&
-    value.error instanceof Error
+    "str" in value &&
+    typeof value.str === "string" &&
+    ("num" in value ? typeof value.num === "number" : true) &&
+    "obj" in value &&
+    isPlainObject(value.obj) &&
+    "value" in value.obj &&
+    typeof value.obj.value === "boolean"
   );
 }
