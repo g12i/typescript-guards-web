@@ -100,15 +100,11 @@ export function ${functionName}(value: unknown): value is ${typeName} {
 
 function generateNodeChecks(node: ts.Node, context: GeneratorContext): string {
 	if (ts.isUnionTypeNode(node)) {
-		const unionChecks = node.types.map((type) => generateNodeChecks(type, context));
-
-		return unionChecks.join(' || ');
+		return generateUnionChecks(node, context);
 	}
 
 	if (ts.isIntersectionTypeNode(node)) {
-		const intersectionChecks = node.types.map((type) => generateNodeChecks(type, context));
-
-		return intersectionChecks.join(' && ');
+		return generateIntersectionChecks(node, context);
 	}
 
 	if (ts.isArrayTypeNode(node)) {
@@ -351,6 +347,19 @@ function generateTupleCheck(node: ts.TupleTypeNode, context: GeneratorContext): 
 	});
 
 	return `Array.isArray(${valuePath}) && ${valuePath}.length === ${elementTypes.length} && ${tupleChecks.map((check) => `(${check})`).join(`&&`)}`;
+}
+
+function generateUnionChecks(node: ts.UnionTypeNode, context: GeneratorContext) {
+	const unionChecks = node.types.map((type) => generateNodeChecks(type, context));
+
+	return unionChecks.join(' || ');
+}
+
+function generateIntersectionChecks(node: ts.IntersectionTypeNode, context: GeneratorContext) {
+	
+	const intersectionChecks = node.types.map((type) => generateNodeChecks(type, context));
+
+	return intersectionChecks.join(' && ');
 }
 
 function generateRecordChecks(node: ts.TypeReferenceNode, context: GeneratorContext): string {
