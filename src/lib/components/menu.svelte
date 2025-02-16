@@ -1,6 +1,8 @@
 <script lang="ts">
-	import * as Menubar from '$lib/components/ui/menubar/index.js';
+	import * as Menubar from '$lib/components/ui/menubar';
 	import type { Flags } from '$lib/generator/context';
+	import { Button } from '$lib/components/ui/button';
+	import GithubIcon from 'lucide-svelte/icons/github';
 
 	type Props = { flags: Flags };
 
@@ -179,4 +181,8 @@
 			</Menubar.RadioGroup>
 		</Menubar.Content>
 	</Menubar.Menu>
+
+	<Button variant="ghost" size="icon" class="ml-auto">
+		<GithubIcon />
+	</Button>
 </Menubar.Root>

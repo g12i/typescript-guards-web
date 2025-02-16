@@ -9,7 +9,6 @@
 	import { isFlags } from '$lib/generator/context';
 	import { storage } from '$lib/storage';
 	import Menu from '$lib/components/menu.svelte';
-
 	let worker: Worker | undefined = $state();
 	let latestRequestId: string | undefined = $state();
 
@@ -26,8 +25,6 @@
 
 		debounceTimeout = setTimeout(() => {
 			debouncedInput = nextInput;
-
-			requestGeneration();
 		}, 300);
 	};
 
@@ -38,20 +35,6 @@
 	});
 
 	let output = $state('');
-
-	const requestGeneration = () => {
-		const requestId = crypto.randomUUID();
-		latestRequestId = requestId;
-
-		worker?.postMessage(
-			JSON.stringify({
-				type: 'generate',
-				id: requestId,
-				input: debouncedInput,
-				flags
-			} satisfies GenerateRequest)
-		);
-	};
 
 	onMount(async () => {
 		storage.ifPresent<string>('generator:input', (val) => {
@@ -81,8 +64,20 @@
 				output = res.data.output;
 			}
 		});
+	});
 
-		requestGeneration();
+	$effect(() => {
+		const requestId = crypto.randomUUID();
+		latestRequestId = requestId;
+
+		worker?.postMessage(
+			JSON.stringify({
+				type: 'generate',
+				id: requestId,
+				input: debouncedInput,
+				flags
+			} satisfies GenerateRequest)
+		);
 	});
 </script>
 

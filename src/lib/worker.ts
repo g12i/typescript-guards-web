@@ -1,9 +1,9 @@
 import ts from 'typescript';
-import { generateTypeGuardForFile } from './generator/generator';
-import { isGenerateRequest } from './worker-types';
-import type { GenerateResponse } from './worker-types';
-import { attempt } from './attempt';
 import { formatTypeScript } from './generator/format';
+import { generateTypeGuardForFile } from './generator/generator';
+import { attempt } from './utils';
+import type { GenerateResponse } from './worker-types';
+import { isGenerateRequest } from './worker-types';
 
 let currentRequestId: string | null = null;
 
