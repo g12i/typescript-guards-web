@@ -202,4 +202,21 @@ type WithClass = {
 
 		expect(result).toMatchFileSnapshot('snapshots/class-types.snapshot.ts');
 	});
+
+	it('should handle readonly modifiers correctly', async () => {
+		const sourceFile = ts.createSourceFile(
+			'readonly.ts',
+			`
+type ReadonlyStuff = {
+  readonly id: number;
+  readonly data: readonly string[];
+};`,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
+		expect(result).toMatchFileSnapshot('snapshots/readonly.snapshot.ts');
+	});
 });

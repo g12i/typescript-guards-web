@@ -126,6 +126,12 @@ function generateNodeChecks(node: ts.Node, context: GeneratorContext): string {
 		return generateReferenceChecks(node, context);
 	}
 
+	// Add handling for readonly array type
+	if (ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.ReadonlyKeyword) {
+		// Pass through to the underlying type
+		return generateNodeChecks(node.type, context);
+	}
+
 	const valuePath = context.currentValuePath;
 
 	if (node.kind === ts.SyntaxKind.StringKeyword) {
