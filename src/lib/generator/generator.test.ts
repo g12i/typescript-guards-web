@@ -237,4 +237,20 @@ type WithFunction = {
 
 		expect(result).toMatchFileSnapshot('snapshots/functions.snapshot.ts');
 	});
+
+	it('should handle template literal types', async () => {
+		const sourceFile = ts.createSourceFile(
+			'template-literals.ts',
+			`
+type Status = \`\${string}_STATUS\`;
+type HttpMethod = 'GET' | 'POST' | \`\${string}_METHOD\`;
+`,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
+		expect(result).toMatchFileSnapshot('snapshots/template-literals.snapshot.ts');
+	});
 });
