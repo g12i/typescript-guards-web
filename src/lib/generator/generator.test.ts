@@ -219,4 +219,22 @@ type ReadonlyStuff = {
 
 		expect(result).toMatchFileSnapshot('snapshots/readonly.snapshot.ts');
 	});
+
+	it('should handle function types', async () => {
+		const sourceFile = ts.createSourceFile(
+			'functions.ts',
+			`
+type WithFunction = {
+  callback: (arg: string) => number;
+  method(): void;
+  multiArg(x: number, y: string): boolean;
+};`,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
+		expect(result).toMatchFileSnapshot('snapshots/functions.snapshot.ts');
+	});
 });

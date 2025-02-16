@@ -126,10 +126,12 @@ function generateNodeChecks(node: ts.Node, context: GeneratorContext): string {
 		return generateReferenceChecks(node, context);
 	}
 
-	// Add handling for readonly array type
 	if (ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.ReadonlyKeyword) {
-		// Pass through to the underlying type
 		return generateNodeChecks(node.type, context);
+	}
+
+	if (ts.isFunctionTypeNode(node) || ts.isMethodSignature(node) || ts.isMethodDeclaration(node)) {
+		return `typeof ${context.currentValuePath} === 'function'`;
 	}
 
 	const valuePath = context.currentValuePath;
@@ -172,31 +174,40 @@ function generateDeclarationsChecks(
 	const members = ts.isTypeLiteralNode(node) ? node.members : node.members;
 
 	const memberChecks = members.map((member) => {
-		if (!ts.isPropertySignature(member)) {
+		const propName = member.name?.getText();
+
+		if (!propName) {
 			return '';
 		}
 
-		const propType = member.type;
-
-		if (!propType) {
-			return '';
+		if (ts.isMethodSignature(member)) {
+			// Handle methods - just check if it's a function
+			return `&& ('${propName}' in ${valuePath} && typeof ${valuePath}.${propName} === 'function')`;
 		}
 
-		const propName = member.name.getText();
+		if (ts.isPropertySignature(member)) {
+			const propType = member.type;
 
-		const newContext = {
-			...context,
-			currentValuePath: `${context.currentValuePath}.${propName}`
-		};
+			if (!propType) {
+				return '';
+			}
 
-		const propertyChecks = generateNodeChecks(propType, newContext);
+			const newContext = {
+				...context,
+				currentValuePath: `${context.currentValuePath}.${propName}`
+			};
 
-		// Handle optional properties
-		const isOptional = member.questionToken !== undefined;
+			const propertyChecks = generateNodeChecks(propType, newContext);
 
-		return isOptional
-			? `&& ('${propName}' in ${valuePath} ? (${propertyChecks}) : true)`
-			: `&& ('${propName}' in ${valuePath} && (${propertyChecks}))`;
+			// Handle optional properties
+			const isOptional = member.questionToken !== undefined;
+
+			return isOptional
+				? `&& ('${propName}' in ${valuePath} ? (${propertyChecks}) : true)`
+				: `&& ('${propName}' in ${valuePath} && (${propertyChecks}))`;
+		}
+
+		return '';
 	});
 
 	context.runtime.needIsPlainObject = true;
