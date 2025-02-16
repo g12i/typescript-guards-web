@@ -420,4 +420,47 @@ type WithFunction = {
 
 		expect(result).toMatchFileSnapshot(`snapshots/circular.snapshot.ts`);
 	});
+
+	it('should handle never type', async () => {
+		const sourceFile = ts.createSourceFile(
+			'never.ts',
+			`
+        type NeverType = string & number; // resolves to never
+        type WithNever = {
+            impossible: never;
+        };`,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
+
+		expect(result).toMatchFileSnapshot(`snapshots/never.snapshot.ts`);
+	});
+
+	it('should handle bigint type', async () => {
+		const sourceFile = ts.createSourceFile(
+			'bigint.ts',
+			`
+        type WithBigInt = {
+            big: bigint;
+            optional?: bigint;
+            bigOrNumber: bigint | number;
+        };`,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
+
+		expect(result).toMatchFileSnapshot(`snapshots/bigint.snapshot.ts`);
+	});
 });

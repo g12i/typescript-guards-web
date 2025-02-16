@@ -149,6 +149,14 @@ function generateNodeChecks(node: ts.Node, context: GeneratorContext): string {
 
 	const valuePath = context.currentValuePath;
 
+	if (node.kind === ts.SyntaxKind.NeverKeyword) {
+		return 'false /* never type cannot have values */';
+	}
+
+	if (node.kind === ts.SyntaxKind.BigIntKeyword) {
+		return `typeof ${valuePath} === "bigint"`;
+	}
+
 	if (node.kind === ts.SyntaxKind.StringKeyword || ts.isTemplateLiteralTypeNode(node)) {
 		return `typeof ${valuePath} === "string"`;
 	}
