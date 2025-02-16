@@ -2,7 +2,7 @@
 	import * as Menubar from '$lib/components/ui/menubar';
 	import type { Flags } from '$lib/generator/context';
 	import { Button } from '$lib/components/ui/button';
-	import GithubIcon from 'lucide-svelte/icons/github';
+	import { storage } from '$lib/storage';
 
 	type Props = { flags: Flags };
 
@@ -12,177 +12,65 @@
 		<TKey extends keyof Flags>(prop: TKey) =>
 		(next: string) => {
 			flags[prop] = next as Flags[TKey];
+
+			storage.setItem('generator:flags', flags);
 		};
 </script>
 
 <Menubar.Root class="rounded-none border-b border-none px-2 lg:px-4">
 	<Menubar.Menu>
-		<Menubar.Trigger class="font-bold">Music</Menubar.Trigger>
-		<Menubar.Content>
-			<Menubar.Item>About Music</Menubar.Item>
-			<Menubar.Separator />
-			<Menubar.Item>
-				Preferences... <Menubar.Shortcut>⌘,</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Separator />
-			<Menubar.Item>
-				Hide Music... <Menubar.Shortcut>⌘H</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item>
-				Hide Others... <Menubar.Shortcut>⇧⌘H</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Shortcut />
-			<Menubar.Item>
-				Quit Music <Menubar.Shortcut>⌘Q</Menubar.Shortcut>
-			</Menubar.Item>
-		</Menubar.Content>
-	</Menubar.Menu>
-	<Menubar.Menu>
-		<Menubar.Trigger class="relative">File</Menubar.Trigger>
+		<Menubar.Trigger>Options</Menubar.Trigger>
 		<Menubar.Content>
 			<Menubar.Sub>
-				<Menubar.SubTrigger>New</Menubar.SubTrigger>
+				<Menubar.SubTrigger>Plan object check</Menubar.SubTrigger>
 				<Menubar.SubContent class="w-[230px]">
-					<Menubar.Item>
-						Playlist <Menubar.Shortcut>⌘N</Menubar.Shortcut>
-					</Menubar.Item>
-					<Menubar.Item disabled>
-						Playlist from Selection <Menubar.Shortcut>⇧⌘N</Menubar.Shortcut>
-					</Menubar.Item>
-					<Menubar.Item>
-						Smart Playlist... <Menubar.Shortcut>⌥⌘N</Menubar.Shortcut>
-					</Menubar.Item>
-					<Menubar.Item>Playlist Folder</Menubar.Item>
-					<Menubar.Item disabled>Genius Playlist</Menubar.Item>
+					<Menubar.RadioGroup
+						value={flags.plainObjectCheck}
+						onValueChange={updateFlags('plainObjectCheck')}
+					>
+						<Menubar.RadioItem value="simple">Simple check</Menubar.RadioItem>
+						<Menubar.RadioItem value="insert">Inline check</Menubar.RadioItem>
+						<Menubar.RadioItem value="es-toolkit">
+							Import from <code>es-toolkit</code>
+						</Menubar.RadioItem>
+						<Menubar.RadioItem value="lodash">
+							Import from <code>lodash</code>
+						</Menubar.RadioItem>
+					</Menubar.RadioGroup>
 				</Menubar.SubContent>
 			</Menubar.Sub>
-			<Menubar.Item>
-				Open Stream URL... <Menubar.Shortcut>⌘U</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item>
-				Close Window <Menubar.Shortcut>⌘W</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Separator />
 			<Menubar.Sub>
-				<Menubar.SubTrigger>Library</Menubar.SubTrigger>
-				<Menubar.SubContent>
-					<Menubar.Item>Update Cloud Library</Menubar.Item>
-					<Menubar.Item>Update Genius</Menubar.Item>
-					<Menubar.Separator />
-					<Menubar.Item>Organize Library...</Menubar.Item>
-					<Menubar.Item>Export Library...</Menubar.Item>
-					<Menubar.Separator />
-					<Menubar.Item>Import Playlist...</Menubar.Item>
-					<Menubar.Item disabled>Export Playlist...</Menubar.Item>
-					<Menubar.Item>Show Duplicate Items</Menubar.Item>
-					<Menubar.Separator />
-					<Menubar.Item>Get Album Artwork</Menubar.Item>
-					<Menubar.Item disabled>Get Track Names</Menubar.Item>
+				<Menubar.SubTrigger>Has own check</Menubar.SubTrigger>
+				<Menubar.SubContent class="w-[230px]">
+					<Menubar.RadioGroup value={flags.hasOwnCheck} onValueChange={updateFlags('hasOwnCheck')}>
+						<Menubar.RadioItem value="in">x in y</Menubar.RadioItem>
+						<Menubar.RadioItem value="hasOwn">Object.hasOwn(x, y)</Menubar.RadioItem>
+					</Menubar.RadioGroup>
 				</Menubar.SubContent>
 			</Menubar.Sub>
-			<Menubar.Item>
-				Import... <Menubar.Shortcut>⌘O</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item disabled>Burn Playlist to Disc...</Menubar.Item>
 			<Menubar.Separator />
 			<Menubar.Item>
-				Show in Finder <Menubar.Shortcut>⇧⌘R</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item>Convert</Menubar.Item>
-			<Menubar.Separator />
-			<Menubar.Item>Page Setup...</Menubar.Item>
-			<Menubar.Item disabled>
-				Print... <Menubar.Shortcut>⌘P</Menubar.Shortcut>
-			</Menubar.Item>
-		</Menubar.Content>
-	</Menubar.Menu>
-	<Menubar.Menu>
-		<Menubar.Trigger>Edit</Menubar.Trigger>
-		<Menubar.Content>
-			<Menubar.Item disabled>
-				Undo <Menubar.Shortcut>⌘Z</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item disabled>
-				Redo <Menubar.Shortcut>⇧⌘Z</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Separator />
-			<Menubar.Item disabled>
-				Cut <Menubar.Shortcut>⌘X</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item disabled>
-				Copy <Menubar.Shortcut>⌘C</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item disabled>
-				Paste <Menubar.Shortcut>⌘V</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Separator />
-			<Menubar.Item>
-				Select All <Menubar.Shortcut>⌘A</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item disabled>
-				Deselect All <Menubar.Shortcut>⇧⌘A</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Separator />
-			<Menubar.Item>
-				Smart Dictation...
-				<Menubar.Shortcut>
+				<a
+					class="block w-full"
+					href="https://github.com/g12i/typescript-guards-web/tree/main"
+					target="_blank"
+				>
+					GitHub
+				</a>
+
+				<Menubar.MenubarShortcut>
 					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						stroke="currentColor"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						class="h-4 w-4"
+						role="img"
 						viewBox="0 0 24 24"
-					>
-						<path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12" />
-						<circle cx="17" cy="7" r="5" />
-					</svg>
-				</Menubar.Shortcut>
-			</Menubar.Item>
-			<Menubar.Item>
-				Emoji & Symbols
-				<Menubar.Shortcut>
-					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						stroke="currentColor"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						class="h-4 w-4"
-						viewBox="0 0 24 24"
-					>
-						<circle cx="12" cy="12" r="10" />
-						<path
-							d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+						class="h-4 w-4 fill-current"
+						><title>GitHub</title><path
+							d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
 						/>
 					</svg>
-				</Menubar.Shortcut>
+				</Menubar.MenubarShortcut>
 			</Menubar.Item>
 		</Menubar.Content>
 	</Menubar.Menu>
-	<Menubar.Menu>
-		<Menubar.Trigger>Plain objects</Menubar.Trigger>
-		<Menubar.Content>
-			<Menubar.RadioGroup
-				value={flags.plainObjectCheck}
-				onValueChange={updateFlags('plainObjectCheck')}
-			>
-				<Menubar.RadioItem value="simple">Simple check</Menubar.RadioItem>
-				<Menubar.RadioItem value="insert">Inline check</Menubar.RadioItem>
-				<Menubar.RadioItem value="es-toolkit">
-					Import from <code>es-toolkit</code>
-				</Menubar.RadioItem>
-				<Menubar.RadioItem value="lodash">
-					Import from <code>lodash</code>
-				</Menubar.RadioItem>
-			</Menubar.RadioGroup>
-		</Menubar.Content>
-	</Menubar.Menu>
-
-	<Button variant="ghost" size="icon" class="ml-auto">
-		<GithubIcon />
-	</Button>
+	<Button variant="ghost" size="icon" class="ml-auto"></Button>
 </Menubar.Root>

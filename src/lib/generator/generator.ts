@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import type { GeneratorContext, Flags } from '$lib/generator/context';
+import { type GeneratorContext, type Flags, defaultFlags } from '$lib/generator/context';
 import { generateExtras } from './extras';
 import { formatTypeScript } from './format';
 import { Condition } from './conditions';
@@ -19,8 +19,7 @@ export async function generateTypeGuardForFile(
 			generatedTypeGuards: new Set()
 		},
 		flags: {
-			plainObjectCheck: 'simple',
-			hasOwnCheck: 'hasOwn',
+			...defaultFlags,
 			...flags
 		},
 		hooks: {

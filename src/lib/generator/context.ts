@@ -3,16 +3,22 @@ export type Flags = {
 	hasOwnCheck: 'in' | 'hasOwn';
 };
 
+export const defaultFlags: Flags = {
+	plainObjectCheck: 'simple',
+	hasOwnCheck: 'in'
+};
+
 export function isFlags(value: unknown): value is Flags {
 	return (
 		value !== null &&
 		typeof value === 'object' &&
-		('needIsPlainObject' in value ? typeof value.needIsPlainObject === 'boolean' : true) &&
 		'plainObjectCheck' in value &&
 		(value.plainObjectCheck === 'simple' ||
 			value.plainObjectCheck === 'insert' ||
 			value.plainObjectCheck === 'lodash' ||
-			value.plainObjectCheck === 'es-toolkit')
+			value.plainObjectCheck === 'es-toolkit') &&
+		'hasOwnCheck' in value &&
+		(value.hasOwnCheck === 'in' || value.hasOwnCheck === 'hasOwn')
 	);
 }
 

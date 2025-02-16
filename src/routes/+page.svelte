@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import { isGenerateResponse } from '$lib/worker-types';
 	import type { GenerateRequest } from '$lib/worker-types';
-	import { isFlags } from '$lib/generator/context';
+	import { defaultFlags, isFlags } from '$lib/generator/context';
 	import { storage } from '$lib/storage';
 	import Menu from '$lib/components/menu.svelte';
 	let worker: Worker | undefined = $state();
@@ -28,11 +28,7 @@
 		}, 300);
 	};
 
-	let flags: Flags = $state({ plainObjectCheck: 'simple' });
-
-	$effect(() => {
-		storage.setItem('generator:flags', flags);
-	});
+	let flags: Flags = $state(defaultFlags);
 
 	let output = $state('');
 
@@ -44,6 +40,8 @@
 
 		storage.ifPresent('generator:flags', (val) => {
 			if (isFlags(val)) {
+				console.log('🍤 val', val);
+
 				flags = val;
 			}
 		});
