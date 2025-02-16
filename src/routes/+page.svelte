@@ -93,7 +93,7 @@
 						contextmenu={false}
 					/>
 				</Resizable.Pane>
-				<Resizable.Handle />
+				<Resizable.Handle withHandle />
 				<Resizable.Pane>
 					<Editor
 						value={output}

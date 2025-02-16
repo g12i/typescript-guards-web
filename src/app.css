@@ -91,6 +91,7 @@
 	--color-sidebar-ring: hsl(var(--sidebar-ring));
 
 	/* Border */
+	--radius: 0.75rem;
 	--radius-xl: calc(var(--radius) + 4px);
 	--radius-lg: var(--radius);
 	--radius-md: calc(var(--radius) - 2px);
