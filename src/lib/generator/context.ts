@@ -20,7 +20,7 @@ export type GeneratorContext = {
 	runtime: { needIsPlainObject?: boolean };
 	flags: Flags;
 	hooks: {
-		beforeCode: string;
-		afterCode: string;
+		beforeCode: Map<string, string>;
+		afterCode: Map<string, string>;
 	};
 };

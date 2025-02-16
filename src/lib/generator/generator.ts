@@ -27,8 +27,8 @@ export async function generateTypeGuardForFile(
 			...flags
 		},
 		hooks: {
-			afterCode: '',
-			beforeCode: sourceFile.getText() + '\n'
+			afterCode: new Map(),
+			beforeCode: new Map([['source', sourceFile.getText() + '\n']])
 		}
 	};
 
@@ -36,7 +36,7 @@ export async function generateTypeGuardForFile(
 
 	generateExtras(context);
 
-	let finalCode = context.hooks.beforeCode + code + context.hooks.afterCode;
+	let finalCode = printHooks(context.hooks.beforeCode) + code + printHooks(context.hooks.afterCode);
 
 	if (format) {
 		finalCode = await formatTypeScript(finalCode);
@@ -186,6 +186,10 @@ function generateReferenceChecks(node: ts.TypeReferenceNode, context: GeneratorC
 		return generateSetChecks(node, context);
 	}
 
+	if (typeName === 'Error') {
+		return `${valuePath} instanceof Error`;
+	}
+
 	if (typeName === 'Array') {
 		if (!node.typeArguments || node.typeArguments.length !== 1) {
 			return 'true /* Invalid Array<> */';
@@ -329,4 +333,14 @@ function generateIsPlainObjectCheck(context: GeneratorContext, valuePath: string
 	}
 
 	return `isPlainObject(${valuePath})`;
+}
+
+function printHooks(map: Map<string, string>): string {
+	let parts = '';
+
+	for (const [, value] of map) {
+		parts += value + '\n';
+	}
+
+	return parts;
 }

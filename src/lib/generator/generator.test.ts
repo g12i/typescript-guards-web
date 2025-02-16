@@ -136,12 +136,11 @@ type User = {
 
 		expect(result).toMatchFileSnapshot('snapshots/user.snapshot.ts');
 	});
-});
 
-it('should generate type guards for Record, Map and Set types', async () => {
-	const sourceFile = ts.createSourceFile(
-		'collections.ts',
-		`
+	it('should generate type guards for Record, Map and Set types', async () => {
+		const sourceFile = ts.createSourceFile(
+			'collections.ts',
+			`
 type StringRecord = Record<string, number>;
 type NumberRecord = Record<number, string>;
 type ComplexRecord = Record<string, { id: number; name: string }>;
@@ -152,11 +151,29 @@ type ComplexMap = Map<string, { value: number }>;
 type NumberSet = Set<number>;
 type ComplexSet = Set<{ id: string }>;
 `,
-		ts.ScriptTarget.Latest,
-		true
-	);
+			ts.ScriptTarget.Latest,
+			true
+		);
 
-	const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
 
-	expect(result).toMatchFileSnapshot('snapshots/collections.snapshot.ts');
+		expect(result).toMatchFileSnapshot('snapshots/collections.snapshot.ts');
+	});
+
+	it('should generate type guards for error objects', async () => {
+		const sourceFile = ts.createSourceFile(
+			'error-objects.ts',
+			`
+type ErrorObject = {
+		ok: false;
+		error: Error;
+};`,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
+		expect(result).toMatchFileSnapshot('snapshots/error-objects.snapshot.ts');
+	});
 });

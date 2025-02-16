@@ -3,15 +3,22 @@ import type { GeneratorContext } from '$lib/generator/context';
 export function generateExtras(context: GeneratorContext) {
 	if (context.runtime.needIsPlainObject && context.flags.plainObjectCheck !== 'simple') {
 		if (context.flags.plainObjectCheck === 'es-toolkit') {
-			context.hooks.beforeCode += ts`import { isPlainObject } from 'es-toolkit'` + '\n';
+			context.hooks.beforeCode.set(
+				'planObjectCheck',
+				ts`import { isPlainObject } from 'es-toolkit'` + '\n'
+			);
 		}
 
 		if (context.flags.plainObjectCheck === 'lodash') {
-			context.hooks.beforeCode += ts`import { isPlainObject } from 'lodash'` + '\n';
+			context.hooks.beforeCode.set(
+				'plainObjectCheck',
+				ts`import { isPlainObject } from 'lodash'` + '\n'
+			);
 		}
 
 		if (context.flags.plainObjectCheck === 'insert') {
-			context.hooks.beforeCode +=
+			context.hooks.beforeCode.set(
+				'plainObjectCheck',
 				ts`
 function isPlainObject(value: unknown): value is Record<PropertyKey, any> {
   if (!value || typeof value !== 'object') {
@@ -31,7 +38,8 @@ function isPlainObject(value: unknown): value is Record<PropertyKey, any> {
   }
 
   return Object.prototype.toString.call(value) === '[object Object]';
-}` + '\n';
+}` + '\n'
+			);
 		}
 	}
 }
