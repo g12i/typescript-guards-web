@@ -463,4 +463,25 @@ type WithFunction = {
 
 		expect(result).toMatchFileSnapshot(`snapshots/bigint.snapshot.ts`);
 	});
+
+	it('should handle redundant checks in union and intersection types', async () => {
+		const sourceFile = ts.createSourceFile(
+			'redundant-checks.ts',
+			`
+        type RedundantUnion = { type: "a"; value: string } | { type: "a"; other: number };
+        type RedundantIntersection = { id: number; name: string } & { id: number; age: number };
+        type UnionWithSameChecks = string | string | number | number;
+        `,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
+
+		expect(result).toMatchFileSnapshot(`snapshots/redundant-checks.snapshot.ts`);
+	});
 });

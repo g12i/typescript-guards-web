@@ -2,6 +2,8 @@ import ts from 'typescript';
 import type { GeneratorContext, Flags } from '$lib/generator/context';
 import { generateExtras } from './extras';
 import { formatTypeScript } from './format';
+import { conditions } from './conditions';
+import { Condition } from './conditions';
 
 export async function generateTypeGuardForFile(
 	sourceFile: ts.SourceFile,
@@ -90,124 +92,122 @@ function generateTypeGuardForDeclaration(
 		typeName += `<${anys}>`;
 	}
 
-	const checks = generateNodeChecks(type, context);
+	const condition = generateNodeCondition(type, context);
 
 	return `
 export function ${functionName}(value: unknown): value is ${typeName} {
-  return ${checks};
+  return ${condition};
 }`;
 }
 
-function generateNodeChecks(node: ts.Node, context: GeneratorContext): string {
+function generateNodeCondition(node: ts.Node, context: GeneratorContext): Condition {
 	if (ts.isUnionTypeNode(node)) {
-		return generateUnionChecks(node, context);
+		return generateUnionCondition(node, context);
 	}
 
 	if (ts.isIntersectionTypeNode(node)) {
-		return generateIntersectionChecks(node, context);
+		return generateIntersectionCondition(node, context);
 	}
 
 	if (ts.isArrayTypeNode(node)) {
-		return generateArrayChecks(node, context);
+		return generateArrayCondition(node, context);
 	}
 
 	if (ts.isParenthesizedTypeNode(node)) {
-		return generateNodeChecks(node.type, context);
+		return generateNodeCondition(node.type, context);
 	}
 
 	if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
-		return generateDeclarationsChecks(node, context);
+		return generateDeclarationCondition(node, context);
 	}
 
 	if (ts.isTupleTypeNode(node)) {
-		return generateTupleCheck(node, context);
+		return generateTupleCondition(node, context);
 	}
 
 	if (ts.isLiteralTypeNode(node)) {
-		return generateLiteralCheck(node, context);
+		return generateLiteralCondition(node, context);
 	}
 
 	if (ts.isTypeQueryNode(node)) {
-		return generateTypeQueryCheck(node, context);
+		return generateTypeQueryCondition(node, context);
 	}
 
 	if (ts.isTypeReferenceNode(node)) {
-		return generateReferenceChecks(node, context);
+		return generateReferenceCondition(node, context);
 	}
 
 	if (ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.ReadonlyKeyword) {
-		return generateNodeChecks(node.type, context);
-	}
-
-	if (ts.isFunctionTypeNode(node) || ts.isMethodSignature(node) || ts.isMethodDeclaration(node)) {
-		return `typeof ${context.currentValuePath} === 'function'`;
+		return generateNodeCondition(node.type, context);
 	}
 
 	const valuePath = context.currentValuePath;
 
+	if (ts.isFunctionTypeNode(node) || ts.isMethodSignature(node) || ts.isMethodDeclaration(node)) {
+		return conditions.typeof(valuePath, 'function');
+	}
+
 	if (node.kind === ts.SyntaxKind.NeverKeyword) {
-		return 'false /* never type cannot have values */';
+		return conditions.literal('false /* never type cannot have values */');
 	}
 
 	if (node.kind === ts.SyntaxKind.BigIntKeyword) {
-		return `typeof ${valuePath} === "bigint"`;
+		return conditions.typeof(valuePath, 'bigint');
 	}
 
 	if (node.kind === ts.SyntaxKind.StringKeyword || ts.isTemplateLiteralTypeNode(node)) {
-		return `typeof ${valuePath} === "string"`;
+		return conditions.typeof(valuePath, 'string');
 	}
 
 	if (node.kind === ts.SyntaxKind.NumberKeyword) {
-		return `typeof ${valuePath} === "number"`;
+		return conditions.typeof(valuePath, 'number');
 	}
 
 	if (node.kind === ts.SyntaxKind.BooleanKeyword) {
-		return `typeof ${valuePath} === "boolean"`;
+		return conditions.typeof(valuePath, 'boolean');
 	}
 
 	if (node.kind === ts.SyntaxKind.UndefinedKeyword) {
-		return `typeof ${valuePath} === "undefined"`;
+		return conditions.typeof(valuePath, 'undefined');
 	}
 
 	if (node.kind === ts.SyntaxKind.NullKeyword) {
-		return `${valuePath} === null`;
+		return conditions.equals(valuePath, 'null');
 	}
 
 	if (node.kind === ts.SyntaxKind.AnyKeyword || node.kind === ts.SyntaxKind.UnknownKeyword) {
-		return 'true';
+		return conditions.literal('true');
 	}
 
-	console.log(node.kind);
-
-	return 'true';
+	return conditions.literal(`true /* Unsupported type: ${ts.SyntaxKind[node.kind]} */`);
 }
 
-function generateDeclarationsChecks(
+function generateDeclarationCondition(
 	node: ts.TypeLiteralNode | ts.InterfaceDeclaration,
 	context: GeneratorContext
-) {
+): Condition {
 	const valuePath = context.currentValuePath;
 
 	const members = ts.isTypeLiteralNode(node) ? node.members : node.members;
 
-	const memberChecks = members.map((member) => generateMemberChecks(member, context));
+	const memberCondition = members.map((member) => generateMemberCondition(member, context));
 
-	context.runtime.needIsPlainObject = true;
-
-	return `(${$isObject(context, valuePath)} ${memberChecks.join('')})`;
+	return conditions.and([conditions.literal($isObject(context, valuePath)), ...memberCondition]);
 }
 
-function generateMemberChecks(member: ts.TypeElement, context: GeneratorContext) {
+function generateMemberCondition(member: ts.TypeElement, context: GeneratorContext): Condition {
 	const valuePath = context.currentValuePath;
 
 	if (ts.isIndexSignatureDeclaration(member)) {
-		return `&& true /* Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported */`;
+		return conditions.literal(
+			`true /* Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported */`
+		);
 	}
 
 	const propName = member.name?.getText();
 
 	if (!propName) {
-		return `&& true /* Unknown member type: ${ts.SyntaxKind[member.kind]} */`;
+		return conditions.literal(`true /* Unknown member type: ${ts.SyntaxKind[member.kind]} */`);
 	}
 
 	// Handle computed properties (like Symbol.iterator)
@@ -218,20 +218,21 @@ function generateMemberChecks(member: ts.TypeElement, context: GeneratorContext)
 			currentValuePath: `${context.currentValuePath}[${symbolName}]`
 		};
 
-		const propertyChecks = generateNodeChecks(member.type!, newContext);
-
-		return `&& (${propertyChecks})`;
+		return generateNodeCondition(member.type!, newContext);
 	}
 
 	if (ts.isMethodSignature(member)) {
-		return `&& (${$hasOwn(context, valuePath, propName)} && typeof ${valuePath}.${propName} === 'function')`;
+		return conditions.and([
+			conditions.literal($hasOwn(context, valuePath, propName)),
+			conditions.typeof(`${valuePath}.${propName}`, 'function')
+		]);
 	}
 
 	if (ts.isPropertySignature(member)) {
 		const propType = member.type;
 
 		if (!propType) {
-			return `&& true /* Property signature without type */`;
+			return conditions.literal(`true /* Property signature without type */`);
 		}
 
 		const newContext = {
@@ -239,82 +240,94 @@ function generateMemberChecks(member: ts.TypeElement, context: GeneratorContext)
 			currentValuePath: `${context.currentValuePath}.${propName}`
 		};
 
-		const propertyChecks = generateNodeChecks(propType, newContext);
+		const propertyCondition = generateNodeCondition(propType, newContext);
 
 		// Handle optional properties
 		const isOptional = member.questionToken !== undefined;
 
-		return isOptional
-			? `&& (${$hasOwn(context, valuePath, propName)} ? (${propertyChecks}) : true)`
-			: `&& (${$hasOwn(context, valuePath, propName)} && (${propertyChecks}))`;
+		if (isOptional) {
+			return conditions.literal(
+				`${$hasOwn(context, valuePath, propName)} ? (${propertyCondition}) : true`
+			);
+		}
+
+		return conditions.and([
+			conditions.literal($hasOwn(context, valuePath, propName)),
+			propertyCondition
+		]);
 	}
 
-	return `&& true /* Unsupported member type: ${ts.SyntaxKind[member.kind]} */`;
+	return conditions.literal(`true /* Unsupported member type: ${ts.SyntaxKind[member.kind]} */`);
 }
 
-function generateReferenceChecks(node: ts.TypeReferenceNode, context: GeneratorContext) {
+function generateReferenceCondition(
+	node: ts.TypeReferenceNode,
+	context: GeneratorContext
+): Condition {
 	const valuePath = context.currentValuePath;
 	const typeName = node.typeName.getText();
 
 	if (typeName === 'Record') {
-		return generateRecordChecks(node, context);
+		return generateRecordCondition(node, context);
 	}
 
 	if (typeName === 'Map') {
-		return generateMapChecks(node, context);
+		return generateMapCondition(node, context);
 	}
 
 	if (typeName === 'Set') {
-		return generateSetChecks(node, context);
+		return generateSetCondition(node, context);
 	}
 
 	if (typeName === 'Error') {
-		return `${valuePath} instanceof Error`;
+		return conditions.literal(`${valuePath} instanceof Error`);
 	}
 
 	if (typeName === 'Array') {
 		if (!node.typeArguments || node.typeArguments.length !== 1) {
-			return 'true /* Invalid Array<> */';
+			return conditions.literal(`true /* Invalid Array<> */`);
 		}
 
 		const elementType = node.typeArguments[0];
 
-		return generateArrayChecks({ elementType }, context);
+		return generateArrayCondition({ elementType }, context);
 	}
 
 	// Add this class handling:
 	if (typeName.startsWith('typeof ')) {
 		const className = typeName.replace('typeof ', '');
 		if (context.runtime.classes.has(className)) {
-			return `(typeof ${valuePath} === 'function' && ${valuePath}.name === '${className}')`;
+			return conditions.and([
+				conditions.typeof(valuePath, 'function'),
+				conditions.equals(`${valuePath}.name`, `"${className}"`)
+			]);
 		}
 	}
 
 	if (context.runtime.classes.has(typeName)) {
-		return `(${valuePath} instanceof ${typeName})`;
+		return conditions.literal(`(${valuePath} instanceof ${typeName})`);
 	}
 
-	if (context.runtime.generatedTypeGuards.has(typeName)) {
-		return `is${typeName}(${valuePath})`;
+	if (
+		context.runtime.generatedTypeGuards.has(typeName) ||
+		context.runtime.imports.has(`is${typeName}`)
+	) {
+		return conditions.literal(`is${typeName}(${valuePath})`);
 	}
 
-	if (context.runtime.imports.has(`is${typeName}`)) {
-		return `is${typeName}(${valuePath})`;
-	}
-
-	return `(${$isObject(context, valuePath)})`;
+	return conditions.literal($isObject(context, valuePath));
 }
 
-function generateLiteralCheck(node: ts.LiteralTypeNode, context: GeneratorContext) {
+function generateLiteralCondition(node: ts.LiteralTypeNode, context: GeneratorContext): Condition {
 	const literal = node.literal.getText();
 
-	return `${context.currentValuePath} === ${literal}`;
+	return conditions.equals(context.currentValuePath, literal);
 }
 
-function generateArrayChecks(
+function generateArrayCondition(
 	node: Pick<ts.ArrayTypeNode, 'elementType'>,
 	context: GeneratorContext
-) {
+): Condition {
 	const valuePath = context.currentValuePath;
 	const elementType = node.elementType;
 	const elementContext = {
@@ -322,47 +335,47 @@ function generateArrayChecks(
 		currentValuePath: 'el'
 	};
 
-	const elementChecks = generateNodeChecks(elementType, elementContext);
+	const elementCondition = generateNodeCondition(elementType, elementContext);
 
-	return [
-		`(`,
-		`Array.isArray(${valuePath})`,
-		`&& ${valuePath}.every(el => ${elementChecks})`,
-		`)`
-	].join('\n');
+	return conditions.and([
+		conditions.literal(`Array.isArray(${valuePath})`),
+		conditions.literal(`${valuePath}.every(el => ${elementCondition})`)
+	]);
 }
 
-function generateTupleCheck(node: ts.TupleTypeNode, context: GeneratorContext): string {
+function generateTupleCondition(node: ts.TupleTypeNode, context: GeneratorContext): Condition {
 	const valuePath = context.currentValuePath;
 
 	const elementTypes = node.elements;
 
-	const tupleChecks = elementTypes.map((type, index) => {
+	const tupleConditions = elementTypes.map((type, index) => {
 		const elementContext = {
 			...context,
 			currentValuePath: `${context.currentValuePath}[${index}]`
 		};
 
-		return generateNodeChecks(type, elementContext);
+		return generateNodeCondition(type, elementContext);
 	});
 
-	return `Array.isArray(${valuePath}) && ${valuePath}.length === ${elementTypes.length} && ${tupleChecks.map((check) => `(${check})`).join(`&&`)}`;
+	return conditions.and([
+		conditions.literal(`Array.isArray(${valuePath})`),
+		conditions.literal(`${valuePath}.length === ${elementTypes.length}`),
+		...tupleConditions
+	]);
 }
 
-function generateUnionChecks(node: ts.UnionTypeNode, context: GeneratorContext) {
-	const unionChecks = node.types.map((type) => generateNodeChecks(type, context));
-
-	return unionChecks.join(' || ');
+function generateUnionCondition(node: ts.UnionTypeNode, context: GeneratorContext): Condition {
+	return conditions.or(node.types.map((type) => generateNodeCondition(type, context)));
 }
 
-function generateIntersectionChecks(node: ts.IntersectionTypeNode, context: GeneratorContext) {
-	
-	const intersectionChecks = node.types.map((type) => generateNodeChecks(type, context));
-
-	return intersectionChecks.join(' && ');
+function generateIntersectionCondition(
+	node: ts.IntersectionTypeNode,
+	context: GeneratorContext
+): Condition {
+	return conditions.and(node.types.map((type) => generateNodeCondition(type, context)));
 }
 
-function generateRecordChecks(node: ts.TypeReferenceNode, context: GeneratorContext): string {
+function generateRecordCondition(node: ts.TypeReferenceNode, context: GeneratorContext): Condition {
 	const valuePath = context.currentValuePath;
 
 	if (node.typeArguments && node.typeArguments.length === 2) {
@@ -375,22 +388,21 @@ function generateRecordChecks(node: ts.TypeReferenceNode, context: GeneratorCont
 			currentValuePath: 'value'
 		};
 
-		const valueChecks = generateNodeChecks(valueType, valueContext);
+		const valueCondition = generateNodeCondition(valueType, valueContext);
 
-		context.runtime.needIsPlainObject = true;
-
-		return `(
-      ${$isObject(context, valuePath)} &&
-      Object.entries(${valuePath}).every(([key, value]) =>
-        typeof key === "${keyTypeString}" && (${valueChecks})
-      )
-    )`;
+		return conditions.and([
+			conditions.literal($isObject(context, valuePath)),
+			conditions.literal(`Object.entries(${valuePath}).every(([key, value]) =>
+        typeof key === "${keyTypeString}" && (${valueCondition})
+      )`)
+		]);
 	}
 
-	return 'false';
+	// FIXME
+	return conditions.literal('false');
 }
 
-function generateMapChecks(node: ts.TypeReferenceNode, context: GeneratorContext): string {
+function generateMapCondition(node: ts.TypeReferenceNode, context: GeneratorContext): Condition {
 	const valuePath = context.currentValuePath;
 
 	if (node.typeArguments && node.typeArguments.length === 2) {
@@ -406,21 +418,22 @@ function generateMapChecks(node: ts.TypeReferenceNode, context: GeneratorContext
 			currentValuePath: 'value'
 		};
 
-		const keyChecks = generateNodeChecks(keyType, keyContext);
-		const valueChecks = generateNodeChecks(valueType, valueContext);
+		const keyCondition = generateNodeCondition(keyType, keyContext);
+		const valueCondition = generateNodeCondition(valueType, valueContext);
 
-		return `(
-      ${valuePath} instanceof Map &&
-      Array.from(${valuePath}.entries()).every(([key, value]) =>
-        (${keyChecks}) && (${valueChecks})
-      )
-    )`;
+		return conditions.and([
+			conditions.instanceof(valuePath, 'Map'),
+			conditions.literal(`Array.from(${valuePath}.entries()).every(([key, value]) =>
+        (${keyCondition}) && (${valueCondition})
+      )`)
+		]);
 	}
 
-	return 'false';
+	// FIXME
+	return conditions.literal('false');
 }
 
-function generateSetChecks(node: ts.TypeReferenceNode, context: GeneratorContext): string {
+function generateSetCondition(node: ts.TypeReferenceNode, context: GeneratorContext): Condition {
 	const valuePath = context.currentValuePath;
 
 	if (node.typeArguments && node.typeArguments.length === 1) {
@@ -431,21 +444,25 @@ function generateSetChecks(node: ts.TypeReferenceNode, context: GeneratorContext
 			currentValuePath: 'value'
 		};
 
-		const valueChecks = generateNodeChecks(valueType, valueContext);
+		const valueCondition = generateNodeCondition(valueType, valueContext);
 
-		return `(
-      ${valuePath} instanceof Set &&
-      Array.from(${valuePath}.values()).every(value => ${valueChecks})
-    )`;
+		return conditions.and([
+			conditions.instanceof(valuePath, 'Set'),
+			conditions.literal(`Array.from(${valuePath}.values()).every(value => ${valueCondition})`)
+		]);
 	}
 
-	return 'false';
+	// FIXME
+	return conditions.literal('false');
 }
 
-function generateTypeQueryCheck(node: ts.TypeQueryNode, context: GeneratorContext) {
+function generateTypeQueryCondition(node: ts.TypeQueryNode, context: GeneratorContext): Condition {
 	const typeName = node.exprName.getText();
 
-	return `(typeof ${context.currentValuePath} === 'function' && ${context.currentValuePath}.name === '${typeName}')`;
+	return conditions.and([
+		conditions.typeof(context.currentValuePath, 'function'),
+		conditions.equals(`${context.currentValuePath}.name`, `"${typeName}"`)
+	]);
 }
 
 function printHooks(map: Map<string, string>): string {
@@ -462,6 +479,8 @@ function $isObject(context: GeneratorContext, valuePath: string) {
 	if (context.flags.plainObjectCheck === 'simple') {
 		return `${valuePath} !== null && typeof ${valuePath} === 'object'`;
 	}
+
+	context.runtime.needIsPlainObject = true;
 
 	return `isPlainObject(${valuePath})`;
 }

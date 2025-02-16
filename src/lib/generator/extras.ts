@@ -30,7 +30,7 @@ function hasOwn<O extends object, P extends PropertyKey>(obj: O, prop: P): obj i
 `;
 
 export function generateExtras(context: GeneratorContext) {
-	if (context.runtime.needIsPlainObject && context.flags.plainObjectCheck !== 'simple') {
+	if (context.runtime.needIsPlainObject) {
 		if (context.flags.plainObjectCheck === 'es-toolkit') {
 			context.hooks.beforeAll.set(
 				'planObjectCheck',
