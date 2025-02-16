@@ -375,7 +375,7 @@ function generateIntersectionCondition(
 	node: ts.IntersectionTypeNode,
 	context: GeneratorContext
 ): Condition {
-	return Condition.and(node.types.map((type) => generateNodeCondition(type, context)));
+	return Condition.and(node.types.map((type) => generateNodeCondition(type, context))).flattenAnd();
 }
 
 function generateRecordCondition(node: ts.TypeReferenceNode, context: GeneratorContext): Condition {
