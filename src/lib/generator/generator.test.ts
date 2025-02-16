@@ -176,4 +176,30 @@ type ErrorObject = {
 
 		expect(result).toMatchFileSnapshot('snapshots/error-objects.snapshot.ts');
 	});
+
+	// generator.test.ts
+	it('should generate type guards for class types', async () => {
+		const sourceFile = ts.createSourceFile(
+			'class-types.ts',
+			`
+import { isOtherClass } from 'somewhere'
+
+class MyClass {
+  prop: string = '';
+}
+
+type WithClass = {
+  instance: MyClass;
+  constructor: typeof MyClass;
+  unknownInstance: OtherClass;
+  unknownConstructor: typeof OtherClass;
+}`,
+			ts.ScriptTarget.Latest,
+			true
+		);
+
+		const result = await generateTypeGuardForFile(sourceFile, { plainObjectCheck: 'simple' }, true);
+
+		expect(result).toMatchFileSnapshot('snapshots/class-types.snapshot.ts');
+	});
 });

@@ -17,7 +17,12 @@ export function isFlags(value: unknown): value is Flags {
 
 export type GeneratorContext = {
 	currentValuePath: string;
-	runtime: { needIsPlainObject?: boolean };
+	runtime: {
+		needIsPlainObject?: boolean;
+		classes: Set<string>;
+		imports: Set<string>;
+		generatedTypeGuards: Set<string>;
+	};
 	flags: Flags;
 	hooks: {
 		beforeCode: Map<string, string>;

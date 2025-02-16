@@ -10,18 +10,13 @@ export async function generateTypeGuardForFile(
 ): Promise<string> {
 	const declarations: (ts.TypeAliasDeclaration | ts.InterfaceDeclaration)[] = [];
 
-	const visit = (node: ts.Node) => {
-		if (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) {
-			declarations.push(node);
-		}
-		ts.forEachChild(node, visit);
-	};
-
-	ts.forEachChild(sourceFile, visit);
-
 	const context: GeneratorContext = {
 		currentValuePath: 'value',
-		runtime: {},
+		runtime: {
+			classes: new Set(),
+			imports: new Set(),
+			generatedTypeGuards: new Set()
+		},
 		flags: {
 			plainObjectCheck: 'simple',
 			...flags
@@ -31,6 +26,33 @@ export async function generateTypeGuardForFile(
 			beforeCode: new Map([['source', sourceFile.getText() + '\n']])
 		}
 	};
+
+	const visit = (node: ts.Node) => {
+		if (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) {
+			declarations.push(node);
+		}
+		if (ts.isClassDeclaration(node) && node.name) {
+			context.runtime.classes.add(node.name.text);
+		}
+		if (ts.isImportDeclaration(node)) {
+			if (node.importClause) {
+				// Handle default imports
+				if (node.importClause.name) {
+					context.runtime.imports.add(node.importClause.name.text);
+				}
+
+				// Handle named imports
+				if (node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
+					node.importClause.namedBindings.elements.forEach((element) => {
+						context.runtime.imports.add(element.name.text);
+					});
+				}
+			}
+		}
+		ts.forEachChild(node, visit);
+	};
+
+	ts.forEachChild(sourceFile, visit);
 
 	const code = declarations.map((d) => generateTypeGuardForDeclaration(d, context)).join('\n\n');
 
@@ -52,6 +74,8 @@ function generateTypeGuardForDeclaration(
 	const typeName = decl.name.text;
 	const functionName = `is${typeName}`;
 	const type = ts.isTypeAliasDeclaration(decl) ? decl.type : decl;
+
+	context.runtime.generatedTypeGuards.add(typeName);
 
 	const checks = generateNodeChecks(type, context);
 
@@ -92,6 +116,10 @@ function generateNodeChecks(node: ts.Node, context: GeneratorContext): string {
 
 	if (ts.isLiteralTypeNode(node)) {
 		return generateLiteralCheck(node, context);
+	}
+
+	if (ts.isTypeQueryNode(node)) {
+		return generateTypeQueryCheck(node, context);
 	}
 
 	if (ts.isTypeReferenceNode(node)) {
@@ -200,7 +228,27 @@ function generateReferenceChecks(node: ts.TypeReferenceNode, context: GeneratorC
 		return generateArrayChecks({ elementType }, context);
 	}
 
-	return `is${typeName}(${valuePath})`;
+	// Add this class handling:
+	if (typeName.startsWith('typeof ')) {
+		const className = typeName.replace('typeof ', '');
+		if (context.runtime.classes.has(className)) {
+			return `(typeof ${valuePath} === 'function' && ${valuePath}.name === '${className}')`;
+		}
+	}
+
+	if (context.runtime.classes.has(typeName)) {
+		return `(${valuePath} instanceof ${typeName})`;
+	}
+
+	if (context.runtime.generatedTypeGuards.has(typeName)) {
+		return `is${typeName}(${valuePath})`;
+	}
+
+	if (context.runtime.imports.has(`is${typeName}`)) {
+		return `is${typeName}(${valuePath})`;
+	}
+
+	return `(${generateIsPlainObjectCheck(context, valuePath)})`;
 }
 
 function generateLiteralCheck(node: ts.LiteralTypeNode, context: GeneratorContext) {
@@ -325,6 +373,12 @@ function generateSetChecks(node: ts.TypeReferenceNode, context: GeneratorContext
 	}
 
 	return 'false';
+}
+
+function generateTypeQueryCheck(node: ts.TypeQueryNode, context: GeneratorContext) {
+	const typeName = node.exprName.getText();
+
+	return `(typeof ${context.currentValuePath} === 'function' && ${context.currentValuePath}.name === '${typeName}')`;
 }
 
 function generateIsPlainObjectCheck(context: GeneratorContext, valuePath: string) {
