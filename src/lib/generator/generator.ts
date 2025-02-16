@@ -2,7 +2,6 @@ import ts from 'typescript';
 import type { GeneratorContext, Flags } from '$lib/generator/context';
 import { generateExtras } from './extras';
 import { formatTypeScript } from './format';
-import { conditions } from './conditions';
 import { Condition } from './conditions';
 
 export async function generateTypeGuardForFile(
@@ -94,7 +93,10 @@ function generateTypeGuardForDeclaration(
 
 	const condition = generateNodeCondition(type, context);
 
+	const comments = condition.collectComments();
+
 	return `
+${comments.size > 0 ? `/* Warning:\n${[...comments].map((c) => `* - ${c}`).join('\n')}\n*/` : ''}
 export function ${functionName}(value: unknown): value is ${typeName} {
   return ${condition};
 }`;
@@ -148,7 +150,7 @@ function generateNodeCondition(node: ts.Node, context: GeneratorContext): Condit
 	}
 
 	if (node.kind === ts.SyntaxKind.NeverKeyword) {
-		return Condition.expr('false', 'never type cannot have values');
+		return Condition.expr('false', 'Never type');
 	}
 
 	if (node.kind === ts.SyntaxKind.BigIntKeyword) {
@@ -172,11 +174,12 @@ function generateNodeCondition(node: ts.Node, context: GeneratorContext): Condit
 	}
 
 	if (node.kind === ts.SyntaxKind.NullKeyword) {
-		return Condition.equals(valuePath, 'null');
+		return Condition.eq(valuePath, 'null');
 	}
 
 	if (node.kind === ts.SyntaxKind.AnyKeyword || node.kind === ts.SyntaxKind.UnknownKeyword) {
-		return Condition.expr('true', 'any or unknown type');
+		// Any type is always true
+		return Condition.expr('true');
 	}
 
 	return Condition.expr('true', `Unsupported type: ${ts.SyntaxKind[node.kind]}`);
@@ -201,7 +204,7 @@ function generateMemberCondition(member: ts.TypeElement, context: GeneratorConte
 	if (ts.isIndexSignatureDeclaration(member)) {
 		return Condition.expr(
 			`true`,
-			`Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported`
+			`Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not yet supported`
 		);
 	}
 
@@ -233,7 +236,7 @@ function generateMemberCondition(member: ts.TypeElement, context: GeneratorConte
 		const propType = member.type;
 
 		if (!propType) {
-			return Condition.expr('true',`Property signature without type`);
+			return Condition.expr('true', `Property signature without type`);
 		}
 
 		const newContext = {
@@ -300,7 +303,7 @@ function generateReferenceCondition(
 		if (context.runtime.classes.has(className)) {
 			return Condition.and([
 				Condition.typeof(valuePath, 'function'),
-				Condition.equals(`${valuePath}.name`, `"${className}"`)
+				Condition.eq(`${valuePath}.name`, `"${className}"`)
 			]);
 		}
 	}
@@ -322,7 +325,7 @@ function generateReferenceCondition(
 function generateLiteralCondition(node: ts.LiteralTypeNode, context: GeneratorContext): Condition {
 	const literal = node.literal.getText();
 
-	return Condition.equals(context.currentValuePath, literal);
+	return Condition.eq(context.currentValuePath, literal);
 }
 
 function generateArrayCondition(
@@ -399,8 +402,7 @@ function generateRecordCondition(node: ts.TypeReferenceNode, context: GeneratorC
 		]);
 	}
 
-	// FIXME
-	return Condition.expr('false');
+	return Condition.expr('true', `Invalid generic arguments for Record. Expected Record<K, V>`);
 }
 
 function generateMapCondition(node: ts.TypeReferenceNode, context: GeneratorContext): Condition {
@@ -430,8 +432,7 @@ function generateMapCondition(node: ts.TypeReferenceNode, context: GeneratorCont
 		]);
 	}
 
-	// FIXME
-	return Condition.expr('false');
+	return Condition.expr('true', 'Invalid generic arguments for Map. Expected Map<K, V>');
 }
 
 function generateSetCondition(node: ts.TypeReferenceNode, context: GeneratorContext): Condition {
@@ -453,8 +454,7 @@ function generateSetCondition(node: ts.TypeReferenceNode, context: GeneratorCont
 		]);
 	}
 
-	// FIXME
-	return Condition.expr('false');
+	return Condition.expr('true', 'Invalid generic arguments for Set. Expected Set<T>');
 }
 
 function generateTypeQueryCondition(node: ts.TypeQueryNode, context: GeneratorContext): Condition {
@@ -462,7 +462,7 @@ function generateTypeQueryCondition(node: ts.TypeQueryNode, context: GeneratorCo
 
 	return Condition.and([
 		Condition.typeof(context.currentValuePath, 'function'),
-		Condition.equals(`${context.currentValuePath}.name`, `"${typeName}"`)
+		Condition.eq(`${context.currentValuePath}.name`, `"${typeName}"`)
 	]);
 }
 

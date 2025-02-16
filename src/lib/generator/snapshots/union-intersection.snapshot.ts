@@ -41,7 +41,6 @@ export function isIntersection(value: unknown): value is Intersection {
     isPlainObject(value) &&
     hasOwn(value, "id") &&
     typeof value.id === "number" &&
-    isPlainObject(value) &&
     hasOwn(value, "name") &&
     typeof value.name === "string"
   );

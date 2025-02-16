@@ -40,7 +40,6 @@ export function isBasicTypes(value: unknown): value is BasicTypes {
     hasOwn(value, "str") &&
     typeof value.str === "string" &&
     hasOwn(value, "any") &&
-    true /* any or unknown type */ &&
     hasOwn(value, "num") &&
     typeof value.num === "number" &&
     hasOwn(value, "bool") &&
@@ -49,7 +48,6 @@ export function isBasicTypes(value: unknown): value is BasicTypes {
     value.nil === null &&
     hasOwn(value, "undef") &&
     typeof value.undef === "undefined" &&
-    hasOwn(value, "unknown") &&
-    true /* any or unknown type */
+    hasOwn(value, "unknown")
   );
 }

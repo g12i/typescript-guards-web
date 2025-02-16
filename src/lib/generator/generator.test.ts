@@ -61,7 +61,7 @@ describe(generateTypeGuardForFile.name, () => {
 
 				const result = await generateTypeGuardForFile(sourceFile, flags, true);
 
-				expect(result).toMatchFileSnapshot(
+				await expect(result).toMatchFileSnapshot(
 					`snapshots/flags/${flags.plainObjectCheck}.${flags.hasOwnCheck}.snapshot.ts`
 				);
 			}
@@ -91,7 +91,7 @@ type BasicTypes = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/basic-types.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/basic-types.snapshot.ts');
 	});
 
 	it('should generate a type guard for union and intersection types', async () => {
@@ -111,7 +111,7 @@ type ComplexUnion = { type: "a"; value: string } | { type: "b"; value: number };
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/union-intersection.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/union-intersection.snapshot.ts');
 	});
 
 	it('should generate a type guard for arrays and tuples', async () => {
@@ -132,7 +132,7 @@ type NestedArray = Array<Array<string>>;`,
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/arrays-tuples.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/arrays-tuples.snapshot.ts');
 	});
 
 	it('should generate a type guard for interfaces with optional properties', async () => {
@@ -160,7 +160,7 @@ interface Employee extends Person {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/interfaces.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/interfaces.snapshot.ts');
 	});
 
 	it('should generate a type guard for nested objects and literals', async () => {
@@ -194,7 +194,7 @@ type Config = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/nested-objects.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/nested-objects.snapshot.ts');
 	});
 
 	// Original test
@@ -223,7 +223,7 @@ type User = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/user.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/user.snapshot.ts');
 	});
 
 	it('should generate type guards for Record, Map and Set types', async () => {
@@ -250,7 +250,7 @@ type ComplexSet = Set<{ id: string }>;
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/collections.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/collections.snapshot.ts');
 	});
 
 	it('should generate type guards for error objects', async () => {
@@ -271,7 +271,7 @@ type ErrorObject = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/error-objects.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/error-objects.snapshot.ts');
 	});
 
 	// generator.test.ts
@@ -301,7 +301,7 @@ type WithClass = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/class-types.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/class-types.snapshot.ts');
 	});
 
 	it('should handle readonly modifiers correctly', async () => {
@@ -322,7 +322,7 @@ type ReadonlyStuff = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/readonly.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/readonly.snapshot.ts');
 	});
 
 	it('should handle function types', async () => {
@@ -344,7 +344,7 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot('snapshots/functions.snapshot.ts');
+		await expect(result).toMatchFileSnapshot('snapshots/functions.snapshot.ts');
 	});
 
 	it('should handle empty interface', async () => {
@@ -357,7 +357,7 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot(`snapshots/empty.snapshot.ts`);
+		await expect(result).toMatchFileSnapshot(`snapshots/empty.snapshot.ts`);
 	});
 
 	it('should handle index signatures with comments', async () => {
@@ -377,7 +377,7 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot(`snapshots/index-signatures.snapshot.ts`);
+		await expect(result).toMatchFileSnapshot(`snapshots/index-signatures.snapshot.ts`);
 	});
 
 	it('should handle complex nested types', async () => {
@@ -398,7 +398,7 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot(`snapshots/nested.snapshot.ts`);
+		await expect(result).toMatchFileSnapshot(`snapshots/nested.snapshot.ts`);
 	});
 
 	it('should handle circular references', async () => {
@@ -418,7 +418,7 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot(`snapshots/circular.snapshot.ts`);
+		await expect(result).toMatchFileSnapshot(`snapshots/circular.snapshot.ts`);
 	});
 
 	it('should handle never type', async () => {
@@ -439,7 +439,7 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot(`snapshots/never.snapshot.ts`);
+		await expect(result).toMatchFileSnapshot(`snapshots/never.snapshot.ts`);
 	});
 
 	it('should handle bigint type', async () => {
@@ -461,7 +461,7 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot(`snapshots/bigint.snapshot.ts`);
+		await expect(result).toMatchFileSnapshot(`snapshots/bigint.snapshot.ts`);
 	});
 
 	it('should handle redundant checks in union and intersection types', async () => {
@@ -482,6 +482,6 @@ type WithFunction = {
 			true
 		);
 
-		expect(result).toMatchFileSnapshot(`snapshots/redundant-checks.snapshot.ts`);
+		await expect(result).toMatchFileSnapshot(`snapshots/redundant-checks.snapshot.ts`);
 	});
 });

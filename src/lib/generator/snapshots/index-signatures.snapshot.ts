@@ -32,10 +32,12 @@ function hasOwn<O extends object, P extends PropertyKey>(
   return Object.hasOwn(obj, prop);
 }
 
+/* Warning:
+ * - Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not yet supported
+ */
 export function isWithIndex(value: unknown): value is WithIndex {
   return (
     isPlainObject(value) &&
-    true /* Index signatures ([key: string]: T, [key: number]: T, [key: symbol]: T) are not supported */ &&
     hasOwn(value, "normalProp") &&
     typeof value.normalProp === "string"
   );

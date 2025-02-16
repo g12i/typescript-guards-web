@@ -33,10 +33,9 @@ export function isNeverType(value: unknown): value is NeverType {
   return typeof value === "string" && typeof value === "number";
 }
 
+/* Warning:
+ * - Never type
+ */
 export function isWithNever(value: unknown): value is WithNever {
-  return (
-    isPlainObject(value) &&
-    hasOwn(value, "impossible") &&
-    false /* never type cannot have values */
-  );
+  return false;
 }
