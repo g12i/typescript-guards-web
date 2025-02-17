@@ -9,7 +9,8 @@ export async function generateTypeGuardForFile(
 	flags?: Flags,
 	format = false
 ): Promise<string> {
-	const declarations: (ts.TypeAliasDeclaration | ts.InterfaceDeclaration)[] = [];
+	const declarations: (ts.TypeAliasDeclaration | ts.InterfaceDeclaration | ts.EnumDeclaration)[] =
+		[];
 
 	const context: GeneratorContext = {
 		currentValuePath: 'value',
@@ -30,7 +31,11 @@ export async function generateTypeGuardForFile(
 	};
 
 	const visit = (node: ts.Node) => {
-		if (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) {
+		if (
+			ts.isTypeAliasDeclaration(node) ||
+			ts.isInterfaceDeclaration(node) ||
+			ts.isEnumDeclaration(node)
+		) {
 			declarations.push(node);
 		}
 		if (ts.isClassDeclaration(node) && node.name) {
@@ -75,7 +80,7 @@ export async function generateTypeGuardForFile(
 }
 
 function generateTypeGuardForDeclaration(
-	decl: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
+	decl: ts.TypeAliasDeclaration | ts.InterfaceDeclaration | ts.EnumDeclaration,
 	context: GeneratorContext
 ) {
 	let typeName = decl.name.text;
@@ -84,7 +89,7 @@ function generateTypeGuardForDeclaration(
 
 	context.runtime.generatedTypeGuards.add(typeName);
 
-	if (decl.typeParameters && decl.typeParameters.length > 0) {
+	if ('typeParameters' in decl && decl.typeParameters && decl.typeParameters.length > 0) {
 		const anys = Array.from({ length: decl.typeParameters.length }, () => 'any').join(', ');
 
 		typeName += `<${anys}>`;
@@ -136,6 +141,10 @@ function generateNodeCondition(node: ts.Node, context: GeneratorContext): Condit
 
 	if (ts.isTypeReferenceNode(node)) {
 		return generateReferenceCondition(node, context);
+	}
+
+	if (ts.isEnumDeclaration(node)) {
+		return generateEnumCondition(node, context);
 	}
 
 	if (ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.ReadonlyKeyword) {
@@ -321,6 +330,12 @@ function generateReferenceCondition(
 	return Condition.expr($isObject(context, valuePath));
 }
 
+function generateEnumCondition(node: ts.EnumDeclaration, context: GeneratorContext) {
+	const enumName = node.name.getText();
+
+	return Condition.expr($hasOwn(context, enumName, `String(${context.currentValuePath})`, true));
+}
+
 function generateLiteralCondition(node: ts.LiteralTypeNode, context: GeneratorContext): Condition {
 	const literal = node.literal.getText();
 
@@ -485,12 +500,12 @@ function $isObject(context: GeneratorContext, valuePath: string) {
 	return `isPlainObject(${valuePath})`;
 }
 
-function $hasOwn(context: GeneratorContext, valuePath: string, propName: string) {
+function $hasOwn(context: GeneratorContext, valuePath: string, propName: string, raw = false) {
 	if (context.flags.hasOwnCheck === 'in') {
-		return `'${propName}' in ${valuePath}`;
+		return `${raw ? propName : `'${propName}'`} in ${valuePath}`;
 	}
 
 	context.runtime.needHasOwn = true;
 
-	return `hasOwn(${valuePath}, '${propName}')`;
+	return `hasOwn(${valuePath}, ${raw ? propName : `'${propName}'`})`;
 }

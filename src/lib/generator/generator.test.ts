@@ -484,4 +484,27 @@ type WithFunction = {
 
 		await expect(result).toMatchFileSnapshot(`snapshots/redundant-checks.snapshot.ts`);
 	});
+
+	it('should handle enums correctly', async () => {
+		const source = `
+       	export enum CreatorExportType {
+       			TRANSACTION = 'transaction',
+       			BALANCE = 'balance',
+        }
+
+				export enum SectionType {
+					SECTION,
+					SUB_SECTION,
+				}
+			`;
+
+		const sourceFile = ts.createSourceFile('enums.ts', source, ts.ScriptTarget.Latest, true);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'in' }, // Test 'in' for enums
+			true
+		);
+		await expect(result).toMatchFileSnapshot(`snapshots/enums.snapshot.ts`);
+	});
 });
