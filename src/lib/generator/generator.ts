@@ -230,7 +230,10 @@ function generateMemberCondition(member: ts.TypeElement, context: GeneratorConte
 			currentValuePath: `${context.currentValuePath}[${symbolName}]`
 		};
 
-		return generateNodeCondition(member.type!, newContext);
+		return Condition.and([
+			Condition.expr($hasOwn(context, valuePath, symbolName, true)),
+			generateNodeCondition(member.type!, newContext)
+		]);
 	}
 
 	if (ts.isMethodSignature(member)) {

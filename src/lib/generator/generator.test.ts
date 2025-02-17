@@ -502,9 +502,28 @@ type WithFunction = {
 
 		const result = await generateTypeGuardForFile(
 			sourceFile,
-			{ plainObjectCheck: 'insert', hasOwnCheck: 'in' }, // Test 'in' for enums
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'in' },
 			true
 		);
 		await expect(result).toMatchFileSnapshot(`snapshots/enums.snapshot.ts`);
+	});
+
+	it('should handle computed properites correctly', async () => {
+		const source = `
+    type Foo = {
+   			['dash-value']: 'dash-value',
+   			[0]: 'number-value'
+   			['some-computed']: () => void
+    }
+				`;
+
+		const sourceFile = ts.createSourceFile('computed.ts', source, ts.ScriptTarget.Latest, true);
+
+		const result = await generateTypeGuardForFile(
+			sourceFile,
+			{ plainObjectCheck: 'insert', hasOwnCheck: 'hasOwn' },
+			true
+		);
+		await expect(result).toMatchFileSnapshot(`snapshots/computed.snapshot.ts`);
 	});
 });
