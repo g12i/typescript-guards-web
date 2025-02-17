@@ -8,7 +8,7 @@ import { isGenerateRequest } from './worker-types';
 let currentRequestId: string | null = null;
 
 self.onmessage = async (e: MessageEvent) => {
-	const [parseError, payload] = await attempt(Promise.resolve(JSON.parse(e.data)));
+	const [parseError, payload] = await attempt(() => Promise.resolve(JSON.parse(e.data)));
 
 	if (parseError) {
 		return self.postMessage({
@@ -29,7 +29,7 @@ self.onmessage = async (e: MessageEvent) => {
 	// Store the ID of the current request
 	currentRequestId = payload.id;
 
-	const [sourceFileErr, sourceFile] = await attempt(
+	const [sourceFileErr, sourceFile] = await attempt(() =>
 		Promise.resolve(ts.createSourceFile('input.ts', payload.input, ts.ScriptTarget.Latest, true))
 	);
 
@@ -44,7 +44,7 @@ self.onmessage = async (e: MessageEvent) => {
 		} satisfies GenerateResponse);
 	}
 
-	const [genError, generatedCode] = await attempt(
+	const [genError, generatedCode] = await attempt(() =>
 		generateTypeGuardForFile(sourceFile, payload.flags)
 	);
 
@@ -59,7 +59,7 @@ self.onmessage = async (e: MessageEvent) => {
 		} satisfies GenerateResponse);
 	}
 
-	const [formatError, formattedCode] = await attempt(formatTypeScript(generatedCode));
+	const [formatError, formattedCode] = await attempt(() => formatTypeScript(generatedCode));
 
 	if (currentRequestId !== payload.id) return;
 

@@ -40,8 +40,6 @@
 
 		storage.ifPresent('generator:flags', (val) => {
 			if (isFlags(val)) {
-				console.log('🍤 val', val);
-
 				flags = val;
 			}
 		});

@@ -5,9 +5,9 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-export async function attempt<T>(promise: Promise<T>): Promise<[Error, null] | [null, T]> {
+export async function attempt<T>(supplier: () => Promise<T>): Promise<[Error, null] | [null, T]> {
 	try {
-		const res: T = await promise;
+		const res: T = await supplier();
 
 		return [null, res];
 	} catch (error) {
